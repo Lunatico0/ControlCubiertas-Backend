@@ -17,19 +17,8 @@ app.use('/api/tires', tireRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 
 app.get('/', (req, res) => {
-  res.send('Hello World!');
+  res.send('Control cubiertas - Transporte Mario Beltran Cardoso (TMBC) - Backend');
 });
-
-async function testPopulate() {
-  try {
-    const vehicles = await vehicleModel.find().populate('tires');
-    console.log("Vehículos poblados: ", vehicles);
-  } catch (error) {
-    console.error("Error al probar populate: ", error.message);
-  }
-}
-
-testPopulate();
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
