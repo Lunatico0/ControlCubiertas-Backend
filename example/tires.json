@@ -1,0 +1,263 @@
+[
+    {
+        "status": "Nueva",
+        "code": 1002,
+        "brand": "Michelin",
+        "size": "285/75R24.5",
+        "pattern": "Mixto",
+        "kilometers": 0,
+        "vehicle": null
+    },
+    {
+        "status": "Nueva",
+        "code": 1003,
+        "brand": "Michelin",
+        "size": "285/75R24.5",
+        "pattern": "Mixto",
+        "kilometers": 0,
+        "vehicle": null
+    },
+    {
+        "status": "Nueva",
+        "code": 1004,
+        "brand": "Michelin",
+        "size": "285/75R24.5",
+        "pattern": "Mixto",
+        "kilometers": 0,
+        "vehicle": null
+    },
+    {
+        "status": "Nueva",
+        "code": 1005,
+        "brand": "Michelin",
+        "size": "285/75R24.5",
+        "pattern": "Mixto",
+        "kilometers": 0,
+        "vehicle": null
+    },
+    {
+        "status": "Nueva",
+        "code": 1006,
+        "brand": "Michelin",
+        "size": "285/75R24.5",
+        "pattern": "Mixto",
+        "kilometers": 0,
+        "vehicle": null
+    },
+    {
+        "status": "1er Recapado",
+        "code": 1007,
+        "brand": "Pirelli",
+        "size": "11R22.5",
+        "pattern": "Off-Road",
+        "kilometers": 20000,
+        "vehicle": null
+    },
+    {
+        "status": "1er Recapado",
+        "code": 1008,
+        "brand": "Pirelli",
+        "size": "11R22.5",
+        "pattern": "Off-Road",
+        "kilometers": 20000,
+        "vehicle": null
+    },
+    {
+        "status": "1er Recapado",
+        "code": 1009,
+        "brand": "Pirelli",
+        "size": "11R22.5",
+        "pattern": "Off-Road",
+        "kilometers": 20000,
+        "vehicle": null
+    },
+    {
+        "status": "1er Recapado",
+        "code": 1010,
+        "brand": "Pirelli",
+        "size": "11R22.5",
+        "pattern": "Off-Road",
+        "kilometers": 20000,
+        "vehicle": null
+    },
+    {
+        "status": "1er Recapado",
+        "code": 1011,
+        "brand": "Pirelli",
+        "size": "11R22.5",
+        "pattern": "Off-Road",
+        "kilometers": 20000,
+        "vehicle": null
+    },
+    {
+        "status": "1er Recapado",
+        "code": 1012,
+        "brand": "Pirelli",
+        "size": "11R22.5",
+        "pattern": "Off-Road",
+        "kilometers": 20000,
+        "vehicle": null
+    },
+    {
+        "status": "2do Recapado",
+        "code": 1013,
+        "brand": "Goodyear",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 40000,
+        "vehicle": null
+    },
+    {
+        "status": "2do Recapado",
+        "code": 1014,
+        "brand": "Goodyear",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 40000,
+        "vehicle": null
+    },
+    {
+        "status": "2do Recapado",
+        "code": 1015,
+        "brand": "Goodyear",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 40000,
+        "vehicle": null
+    },
+    {
+        "status": "2do Recapado",
+        "code": 1016,
+        "brand": "Goodyear",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 40000,
+        "vehicle": null
+    },
+    {
+        "status": "2do Recapado",
+        "code": 1017,
+        "brand": "Goodyear",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 40000,
+        "vehicle": null
+    },
+    {
+        "status": "2do Recapado",
+        "code": 1018,
+        "brand": "Goodyear",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 40000,
+        "vehicle": null
+    },
+    {
+        "status": "3er Recapado",
+        "code": 1019,
+        "brand": "Bridgestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 60000,
+        "vehicle": null
+    },
+    {
+        "status": "3er Recapado",
+        "code": 1020,
+        "brand": "Bridgestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 60000,
+        "vehicle": null
+    },
+    {
+        "status": "3er Recapado",
+        "code": 1021,
+        "brand": "Bridgestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 60000,
+        "vehicle": null
+    },
+    {
+        "status": "3er Recapado",
+        "code": 1022,
+        "brand": "Bridgestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 60000,
+        "vehicle": null
+    },
+    {
+        "status": "3er Recapado",
+        "code": 1023,
+        "brand": "Bridgestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 60000,
+        "vehicle": null
+    },
+    {
+        "status": "3er Recapado",
+        "code": 1024,
+        "brand": "Bridgestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 60000,
+        "vehicle": null
+    },
+    {
+        "status": "4to Recapado",
+        "code": 1025,
+        "brand": "Firestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 80000,
+        "vehicle": null
+    },
+    {
+        "status": "4to Recapado",
+        "code": 1026,
+        "brand": "Firestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 80000,
+        "vehicle": null
+    },
+    {
+        "status": "4to Recapado",
+        "code": 1027,
+        "brand": "Firestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 80000,
+        "vehicle": null
+    },
+    {
+        "status": "4to Recapado",
+        "code": 1028,
+        "brand": "Firestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 80000,
+        "vehicle": null
+    },
+    {
+        "status": "4to Recapado",
+        "code": 1029,
+        "brand": "Firestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 80000,
+        "vehicle": null
+    },
+    {
+        "status": "1er Recapado",
+        "code": 1030,
+        "brand": "Firestone",
+        "size": "11R22.5",
+        "pattern": "On-Road",
+        "kilometers": 80000,
+        "vehicle": null
+    }
+]

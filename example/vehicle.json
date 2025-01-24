@@ -1,0 +1,352 @@
+[
+    {
+        "mobile": "Movil 02",
+        "licensePlate": "EEQ-451",
+        "brand": "Scania 114",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 56",
+        "licensePlate": "BPE-228",
+        "brand": "Semirremolque Termico",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 03",
+        "licensePlate": "EZA-474",
+        "brand": "Scania 114",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 26",
+        "licensePlate": "JFZ-310",
+        "brand": "Semirremolque Hermann",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 75",
+        "licensePlate": "FEL-836",
+        "brand": "Scania R114",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 51",
+        "licensePlate": "RXH-380",
+        "brand": "Semirremolque Randon 1994",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 10",
+        "licensePlate": "JDD-897",
+        "brand": "Mercedez-Benz 1634",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 50",
+        "licensePlate": "MQU-048",
+        "brand": "Acoplado Termico 2013",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 17",
+        "licensePlate": "WPQ-530",
+        "brand": "Mercedez-Benz 1114",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 18",
+        "licensePlate": "SHU-784",
+        "brand": "Mercedez-Benz 1518",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 19",
+        "licensePlate": "KAJ-216",
+        "brand": "Mercedez-Benz 1634",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 54",
+        "licensePlate": "EMZ-981",
+        "brand": "Semirremolque Termico",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 35",
+        "licensePlate": "HYU-641",
+        "brand": "Scania 310",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 37",
+        "licensePlate": "BZX-335",
+        "brand": "Semirremolque Petinari",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 39",
+        "licensePlate": "FFG-031",
+        "brand": "Mercedez-Benz 1634",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 55",
+        "licensePlate": "BSY-826",
+        "brand": "Semirremolque Termico",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 41",
+        "licensePlate": "EKQ-472",
+        "brand": "Mercedez-Benz 1634",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 34",
+        "licensePlate": "CYM-587",
+        "brand": "Acoplado Termico",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 42",
+        "licensePlate": "EMX-033",
+        "brand": "Mercedez-Benz 1634",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 33",
+        "licensePlate": "CKY-513",
+        "brand": "Astivia 3 Ejes",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 44",
+        "licensePlate": "EGL-291",
+        "brand": "Mercedez-Benz 1634",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 68",
+        "licensePlate": "HYU-916",
+        "brand": "Frusso 2009",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 52",
+        "licensePlate": "RXH-381",
+        "brand": "Semirremolque Randon 1994",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 53",
+        "licensePlate": "RXH-383",
+        "brand": "Semirremolque Randon 1994",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 58",
+        "licensePlate": "EZM-106",
+        "brand": "Semirremolque Termico 2005",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 61",
+        "licensePlate": "OTQ-944",
+        "brand": "Mercedez-Benz",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 07",
+        "licensePlate": "FNB-916",
+        "brand": "Acoplado 3 ejes Serenisima",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 64",
+        "licensePlate": "FFN-629",
+        "brand": "Mercedez-Benz 1634 2006",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 43",
+        "licensePlate": "CPY-579",
+        "brand": "Acoplado Termico 1998",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 65",
+        "licensePlate": "ILC-817",
+        "brand": "Mercedez-Benz 2000",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 63",
+        "licensePlate": "BJF-754",
+        "brand": "Semirremolque",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 66",
+        "licensePlate": "AB-270-LG",
+        "brand": "Mercedez-Benz 1735",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 67",
+        "licensePlate": "AB-719-FV",
+        "brand": "Acoplado 3 ejes Serenisima",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 69",
+        "licensePlate": "FQK-269",
+        "brand": "Scania R114GA 2006",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 28",
+        "licensePlate": "JKL-682",
+        "brand": "Semi Hermann",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 70",
+        "licensePlate": "BSY-827",
+        "brand": "Semirremolque Termico 1997",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 71",
+        "licensePlate": "FBR-511",
+        "brand": "Frusso",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 72",
+        "licensePlate": "ELH-984",
+        "brand": "Mercedez-Benz 1634",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 62",
+        "licensePlate": "AMZ-399",
+        "brand": "Acoplado Termico",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 73",
+        "licensePlate": "AE-151-NA",
+        "brand": "Mercedez-Benz 1735",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 48",
+        "licensePlate": "MOP-745",
+        "brand": "Acoplado 3 ejes Serenisima",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 76",
+        "licensePlate": "GGM-714",
+        "brand": "Mercedez-Benz",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 20",
+        "licensePlate": "EHX-359",
+        "brand": "Semirremolque Termico",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 74",
+        "licensePlate": "TOI-865",
+        "brand": "Acoplado",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 78",
+        "licensePlate": "WIN-740",
+        "brand": "Acoplado Helvetica",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 79",
+        "licensePlate": "VND-340",
+        "brand": "Acoplado Batfec",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 77",
+        "licensePlate": "CNA-063",
+        "brand": "Acoplado Tanque",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 81",
+        "licensePlate": "ANJ-689",
+        "brand": null,
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 82",
+        "licensePlate": "NEX-097",
+        "brand": "Mercedez-Benz Atron 2013",
+        "type": null,
+        "tires": null
+    },
+    {
+        "mobile": "Movil 83",
+        "licensePlate": "AG-293-XV",
+        "brand": "Acoplado Serenisima",
+        "type": null,
+        "tires": null
+    }
+]
