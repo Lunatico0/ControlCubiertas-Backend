@@ -11,6 +11,17 @@ class TireController {
     }
   }
 
+  async getById(req, res) {
+    try {
+      const { id } = req.params;
+      const tire = await tireModel.findById(id).populate('Vehicle');
+      if (!tire) return res.status(404).json({ message: 'Tire not found' });
+      res.json(tire);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async create(req, res) {
     const { status, code, brand, size, pattern, kilometers, vehicle } = req.body;
     try {
@@ -55,7 +66,6 @@ class TireController {
       res.status(400).json({ message: error.message });
     }
   }
-
 }
 
 export default new TireController();
