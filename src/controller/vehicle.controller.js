@@ -12,6 +12,17 @@ class VehicleController {
     }
   }
 
+  async getById(req, res) {
+    try {
+      const { id } = req.params;
+      const vehicle = await vehicleModel.findById(id).populate('tires');
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error al obtener el vehículo: ", error.message);
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async create(req, res) {
     const { brand, mobile, licensePlate, type, tires } = req.body;
 
