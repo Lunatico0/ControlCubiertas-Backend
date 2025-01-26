@@ -71,10 +71,7 @@ class VehicleController {
       // Buscar cubiertas que ya están asignadas a otros vehículos
       const conflictingTires = await tireModel.find({
         _id: { $in: tires },
-        $and: [
-          { vehicle: { $exists: true } },
-          { vehicle: { $ne: id } },
-        ],
+        vehicle: { $ne: id, $ne: null },
       });
 
       if (conflictingTires.length > 0) {
@@ -84,8 +81,10 @@ class VehicleController {
         });
       }
 
-      // Cubiertas que se están removiendo del vehículo
-      const currentTires = vehicle.tires.map((tire) => String(tire._id));
+      const currentTires = Array.isArray(vehicle.tires)
+        ? vehicle.tires.map((tire) => String(tire._id))
+        : [];
+
       const tiresToRemove = currentTires.filter((tireId) => !tires.includes(tireId));
 
       // Actualizar las cubiertas removidas para que no tengan vehículo
