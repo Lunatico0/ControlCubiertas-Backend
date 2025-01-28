@@ -11,7 +11,7 @@ const tireSchema = new mongoose.Schema({
   history: [
     {
       date: { type: Date, default: Date.now },
-      vehicle: { type: String, required: true },
+      vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' },
       km: { type: Number },
       state: { type: String, required: true },
     },

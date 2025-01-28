@@ -4,7 +4,7 @@ import vehicleModel from "../models/vehicle.model.js";
 class TireController {
   async getAll(req, res) {
     try {
-      const tires = await tireModel.find().populate('Vehicle');
+      const tires = await tireModel.find().populate('vehicle').populate('history.vehicle');
       res.json(tires);
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -14,7 +14,7 @@ class TireController {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      const tire = await tireModel.findById(id).populate('Vehicle');
+      const tire = await tireModel.findById(id).populate('vehicle').populate('history.vehicle');
       if (!tire) return res.status(404).json({ message: 'Tire not found' });
       res.json(tire);
     } catch (error) {
