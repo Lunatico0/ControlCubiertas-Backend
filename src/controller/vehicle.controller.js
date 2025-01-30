@@ -39,13 +39,16 @@ class VehicleController {
         });
       }
 
-      const newVehicle = new vehicleModel({ brand, mobile, licensePlate, type, tires });
+      const newVehicle = new vehicleModel({ brand, mobile, licensePlate, type, tires: [] });
       await newVehicle.save();
 
       await tireModel.updateMany(
         { _id: { $in: tires } },
         { $set: { vehicle: newVehicle._id } }
       );
+
+      newVehicle.tires = tires;
+      await newVehicle.save();
 
       res.status(201).json(newVehicle);
     } catch (error) {
