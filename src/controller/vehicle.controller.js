@@ -71,9 +71,11 @@ class VehicleController {
         return res.status(404).json({ message: "Vehículo no encontrado" });
       }
 
-      // Buscar cubiertas que ya están asignadas a otros vehículos
+      const currentTires = Array.isArray(vehicle.tires) ? vehicle.tires.map((tire) => String(tire._id)) : [];
+
+      // 🚨 Solución al error de falsos conflictos
       const conflictingTires = await tireModel.find({
-        _id: { $in: tires },
+        _id: { $in: tires.filter((tireId) => !currentTires.includes(tireId)) }, // Excluye las ya asignadas
         vehicle: { $ne: id, $ne: null },
       });
 
@@ -84,55 +86,56 @@ class VehicleController {
         });
       }
 
-      const currentTires = Array.isArray(vehicle.tires)
-        ? vehicle.tires.map((tire) => String(tire._id))
-        : [];
-
       const tiresToRemove = currentTires.filter((tireId) => !tires.includes(tireId));
 
-      // Actualizar las cubiertas removidas para que no tengan vehículo
-      await tireModel.updateMany(
-        { _id: { $in: tiresToRemove } },
-        { $set: { vehicle: null } }
-      );
+      // 🚨 Agregar manejo de errores en updateMany
+      try {
+        await tireModel.updateMany(
+          { _id: { $in: tiresToRemove } },
+          { $set: { vehicle: null } }
+        );
+      } catch (error) {
+        console.error("Error al desvincular cubiertas:", error.message);
+      }
 
-      // Agregar una entrada al historial de las cubiertas removidas
+      // 🚨 Solucionar posible inconsistencia en historial
       for (const tireId of tiresToRemove) {
         const tire = await tireModel.findById(tireId);
         if (tire) {
+          const previousVehicle = tire.vehicle; // Guardamos el vehículo antes de actualizar
           tire.history.push({
-            vehicle: tire.vehicle || "Sin asignar",
+            vehicle: previousVehicle || null,
             km: tire.kilometers,
-            state: tire.status,
+            status: tire.status,
           });
           await tire.save();
         }
       }
 
-      // Actualizar las cubiertas que se están asignando al vehículo
-      await tireModel.updateMany(
-        { _id: { $in: tires } },
-        { $set: { vehicle: id } }
-      );
+      try {
+        await tireModel.updateMany(
+          { _id: { $in: tires } },
+          { $set: { vehicle: id } }
+        );
+      } catch (error) {
+        console.error("Error al asignar nuevas cubiertas:", error.message);
+      }
 
-      // Agregar una entrada al historial de las cubiertas asignadas
       for (const tireId of tires) {
         const tire = await tireModel.findById(tireId);
         if (tire) {
           tire.history.push({
-            vehicle: id, // Nuevo vehículo
+            vehicle: id || null,
             km: tire.kilometers,
-            state: tire.status,
+            status: tire.status,
           });
           await tire.save();
         }
       }
 
-      // Actualizar el array de cubiertas del vehículo
       vehicle.tires = tires;
-      const updatedVehicle = await vehicle.save();
 
-      // Devolver el vehículo actualizado con las cubiertas pobladas
+      // 🚨 Eliminamos `await vehicle.save();` innecesario
       const populatedVehicle = await vehicleModel.findById(id).populate("tires");
       res.json(populatedVehicle);
 

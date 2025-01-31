@@ -36,7 +36,7 @@ class TireController {
   async update(req, res) {
     try {
       const { id } = req.params;
-      const { vehicle, state, ...rest } = req.body;
+      let { vehicle, status, kilometers, ...updateData } = req.body;
 
       const tire = await tireModel.findById(id);
       if (!tire) {
@@ -45,42 +45,53 @@ class TireController {
 
       let shouldUpdateHistory = false;
 
-      if (vehicle && String(tire.vehicle) !== vehicle) {
-        const newVehicle = await vehicleModel.findById(vehicle);
-        if (!newVehicle) {
-          return res.status(404).json({ message: 'El vehículo no existe' });
-        }
+      if (!vehicle || vehicle === "") {
+        vehicle = null;
+      }
 
+      if (String(tire.vehicle) !== String(vehicle)) {
+        // Si el vehículo cambió, actualizamos el historial
         if (tire.vehicle) {
           await vehicleModel.findByIdAndUpdate(tire.vehicle, { $pull: { tires: id } });
         }
 
-        await vehicleModel.findByIdAndUpdate(vehicle, { $addToSet: { tires: id } });
-        tire.vehicle = vehicle;
+        if (vehicle) {
+          const newVehicle = await vehicleModel.findById(vehicle);
+          if (!newVehicle) {
+            return res.status(404).json({ message: "El vehículo no existe" });
+          }
+          await vehicleModel.findByIdAndUpdate(vehicle, { $addToSet: { tires: id } });
+        }
 
-        shouldUpdateHistory = true;
+        tire.vehicle = vehicle;
+        shouldUpdateHistory = true; // Marcar que debemos actualizar el historial
       }
 
       if (status && tire.status !== status) {
         tire.status = status;
+        shouldUpdateHistory = true; // Marcar que debemos actualizar el historial
+      }
 
-        shouldUpdateHistory = true;
+      if (kilometers && tire.kilometers !== kilometers) {
+        tire.kilometers = kilometers;
+        shouldUpdateHistory = true; // Marcar que debemos actualizar el historial
       }
 
       if (shouldUpdateHistory) {
         tire.history.push({
-          vehicle: tire.vehicle || 'Sin asignar',
+          vehicle: tire.vehicle || null,
           km: tire.kilometers,
-          state: tire.status,
+          status: tire.status,
         });
       }
 
+      // ✅ Aplicamos el resto de los cambios
       Object.assign(tire, updateData);
       await tire.save();
-      res.json(tire);
 
-      return res.status(200).json({ message: "Cubierta actualizada con éxito", tire });
+      res.status(200).json({ message: "Cubierta actualizada con éxito", tire });
     } catch (error) {
+      console.error("Error al actualizar la cubierta:", error.message);
       return res.status(500).json({ message: "Error al actualizar la cubierta", error });
     }
   }

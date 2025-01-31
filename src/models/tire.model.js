@@ -13,7 +13,7 @@ const tireSchema = new mongoose.Schema({
       date: { type: Date, default: Date.now },
       vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' },
       km: { type: Number },
-      state: { type: String, required: true },
+      status: { type: String, required: true },
     },
   ],
 }, {
