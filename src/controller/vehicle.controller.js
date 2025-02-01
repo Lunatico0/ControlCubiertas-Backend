@@ -27,6 +27,7 @@ class VehicleController {
     const { brand, mobile, licensePlate, type, tires } = req.body;
 
     try {
+      // Verificar si alguna de las cubiertas ya está asignada a otro vehículo
       const conflictingTires = await tireModel.find({
         _id: { $in: tires },
         vehicle: { $ne: null },
@@ -39,12 +40,25 @@ class VehicleController {
         });
       }
 
+      // Crear el nuevo vehículo
       const newVehicle = new vehicleModel({ brand, mobile, licensePlate, type, tires: [] });
       await newVehicle.save();
 
-      await tireModel.updateMany(
-        { _id: { $in: tires } },
-        { $set: { vehicle: newVehicle._id } }
+      await Promise.all(
+        tires.map(async (tireId) => {
+          const tire = await tireModel.findById(tireId);
+          if (tire) {
+            tire.vehicle = newVehicle._id;
+
+            tire.history.push({
+              vehicle: newVehicle._id,
+              km: tire.kilometers,
+              status: tire.status,
+            });
+
+            await tire.save();
+          }
+        })
       );
 
       newVehicle.tires = tires;
