@@ -50,9 +50,11 @@ class TireController {
       }
 
       if (String(tire.vehicle) !== String(vehicle)) {
-        // Si el vehículo cambió, actualizamos el historial
         if (tire.vehicle) {
-          await vehicleModel.findByIdAndUpdate(tire.vehicle, { $pull: { tires: id } });
+          const prevVehicle = await vehicleModel.findById(tire.vehicle);
+          if (prevVehicle && Array.isArray(prevVehicle.tires)) {
+            await vehicleModel.findByIdAndUpdate(tire.vehicle, { $pull: { tires: id } });
+          }
         }
 
         if (vehicle) {
@@ -60,32 +62,34 @@ class TireController {
           if (!newVehicle) {
             return res.status(404).json({ message: "El vehículo no existe" });
           }
-          await vehicleModel.findByIdAndUpdate(vehicle, { $addToSet: { tires: id } });
+          if (Array.isArray(newVehicle.tires)) {
+            await vehicleModel.findByIdAndUpdate(vehicle, { $addToSet: { tires: id } });
+          }
         }
 
         tire.vehicle = vehicle;
-        shouldUpdateHistory = true; // Marcar que debemos actualizar el historial
+        shouldUpdateHistory = true;
       }
+
 
       if (status && tire.status !== status) {
         tire.status = status;
-        shouldUpdateHistory = true; // Marcar que debemos actualizar el historial
+        shouldUpdateHistory = true;
       }
 
       if (kilometers && tire.kilometers !== kilometers) {
         tire.kilometers = kilometers;
-        shouldUpdateHistory = true; // Marcar que debemos actualizar el historial
+        shouldUpdateHistory = true;
       }
 
       if (shouldUpdateHistory) {
         tire.history.push({
           vehicle: tire.vehicle || null,
-          km: tire.kilometers,
+          km: tire.kilometers || 0,
           status: tire.status,
         });
       }
 
-      // ✅ Aplicamos el resto de los cambios
       Object.assign(tire, updateData);
       await tire.save();
 

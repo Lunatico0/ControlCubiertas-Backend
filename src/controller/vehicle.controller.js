@@ -73,9 +73,8 @@ class VehicleController {
 
       const currentTires = Array.isArray(vehicle.tires) ? vehicle.tires.map((tire) => String(tire._id)) : [];
 
-      // 🚨 Solución al error de falsos conflictos
       const conflictingTires = await tireModel.find({
-        _id: { $in: tires.filter((tireId) => !currentTires.includes(tireId)) }, // Excluye las ya asignadas
+        _id: { $in: tires.filter((tireId) => !currentTires.includes(tireId)) },
         vehicle: { $ne: id, $ne: null },
       });
 
@@ -88,7 +87,6 @@ class VehicleController {
 
       const tiresToRemove = currentTires.filter((tireId) => !tires.includes(tireId));
 
-      // 🚨 Agregar manejo de errores en updateMany
       try {
         await tireModel.updateMany(
           { _id: { $in: tiresToRemove } },
@@ -98,11 +96,10 @@ class VehicleController {
         console.error("Error al desvincular cubiertas:", error.message);
       }
 
-      // 🚨 Solucionar posible inconsistencia en historial
       for (const tireId of tiresToRemove) {
         const tire = await tireModel.findById(tireId);
         if (tire) {
-          const previousVehicle = tire.vehicle; // Guardamos el vehículo antes de actualizar
+          const previousVehicle = tire.vehicle;
           tire.history.push({
             vehicle: previousVehicle || null,
             km: tire.kilometers,
@@ -135,7 +132,6 @@ class VehicleController {
 
       vehicle.tires = tires;
 
-      // 🚨 Eliminamos `await vehicle.save();` innecesario
       const populatedVehicle = await vehicleModel.findById(id).populate("tires");
       res.json(populatedVehicle);
 
