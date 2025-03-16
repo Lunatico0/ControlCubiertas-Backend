@@ -23,9 +23,23 @@ class TireController {
   }
 
   async create(req, res) {
-    const { status, code, brand, size, pattern, kilometers, vehicle } = req.body;
+    const { status, code, brand, pattern, kilometers, vehicle, createdAt } = req.body;
     try {
-      const newTire = new tireModel({ status, code, brand, size, pattern, kilometers, vehicle });
+      const newTire = new tireModel({ status, code, brand, pattern, kilometers, vehicle });
+
+      if (createdAt) {
+        newTire.createdAt = createdAt;
+      }
+
+      const entryDate = createdAt ? new Date(createdAt) : new Date();
+
+      newTire.history.push({
+        vehicle: newTire.vehicle || null,
+        km: newTire.kilometers || 0,
+        status: newTire.status,
+        date: entryDate, // Asegurar que 'date' en el historial se registre correctamente
+      });
+
       await newTire.save();
       res.status(201).json(newTire);
     } catch (error) {
@@ -36,7 +50,7 @@ class TireController {
   async update(req, res) {
     try {
       const { id } = req.params;
-      let { vehicle, status, kilometers, ...updateData } = req.body;
+      let { vehicle, status, kilometers, date, ...updateData } = req.body;
 
       const tire = await tireModel.findById(id);
       if (!tire) {
@@ -45,10 +59,12 @@ class TireController {
 
       let shouldUpdateHistory = false;
 
+      // Si vehicle es una cadena vacía o null, asignarlo como null
       if (!vehicle || vehicle === "") {
         vehicle = null;
       }
 
+      // Si el vehículo cambió, actualizar en la base de datos
       if (String(tire.vehicle) !== String(vehicle)) {
         if (tire.vehicle) {
           const prevVehicle = await vehicleModel.findById(tire.vehicle);
@@ -71,25 +87,29 @@ class TireController {
         shouldUpdateHistory = true;
       }
 
-
+      // Si el estado cambió, actualizarlo
       if (status && tire.status !== status) {
         tire.status = status;
         shouldUpdateHistory = true;
       }
 
+      // Si los kilómetros cambiaron, actualizar
       if (kilometers && tire.kilometers !== kilometers) {
         tire.kilometers = kilometers;
         shouldUpdateHistory = true;
       }
 
+      // Si hay cambios relevantes, agregar un nuevo historial con la fecha proporcionada o la actual
       if (shouldUpdateHistory) {
         tire.history.push({
+          date: date ? new Date(date) : new Date(), // Usa la fecha ingresada o la actual
           vehicle: tire.vehicle || null,
           km: tire.kilometers || 0,
           status: tire.status,
         });
       }
 
+      // Asignar los datos restantes y guardar
       Object.assign(tire, updateData);
       await tire.save();
 
