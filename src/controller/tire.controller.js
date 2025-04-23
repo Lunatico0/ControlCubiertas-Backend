@@ -101,8 +101,9 @@ class TireController {
 
       // Si hay cambios relevantes, agregar un nuevo historial con la fecha proporcionada o la actual
       if (shouldUpdateHistory) {
+        const parsedDate = date && !isNaN(new Date(date)) ? new Date(date) : new Date();
         tire.history.push({
-          date: date ? new Date(date) : new Date(), // Usa la fecha ingresada o la actual
+          date: parsedDate,
           vehicle: tire.vehicle || null,
           km: tire.kilometers || 0,
           status: tire.status,
