@@ -5,7 +5,7 @@ const vehicleSchema = new mongoose.Schema({
     mobile: { type: String, required: true, unique: true },
     licensePlate: { type: String, required: true, unique: true },
     type: { type: String },
-    tires: { type: [mongoose.Schema.Types.ObjectId], ref: 'Tire', default: [] },
+    tires: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tire' }],
 }, {
     timestamps: true
 });
