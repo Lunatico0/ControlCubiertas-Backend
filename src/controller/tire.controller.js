@@ -4,9 +4,14 @@ import vehicleModel from "../models/vehicle.model.js";
 class TireController {
   async getAll(req, res) {
     try {
-      const tires = await tireModel.find().populate('vehicle').populate('history.vehicle');
+      const tires = await tireModel
+        .find()
+        .populate('vehicle')
+        .populate('history.vehicle');
+
       res.json(tires);
     } catch (error) {
+      console.error('Error en getAll:', error);
       res.status(500).json({ message: error.message });
     }
   }
@@ -14,10 +19,17 @@ class TireController {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      const tire = await tireModel.findById(id).populate('vehicle').populate('history.vehicle');
+
+      const tire = await tireModel
+        .findById(id)
+        .populate('vehicle') // Vehículo actualmente asignado
+        .populate('history.vehicle'); // Vehículos históricos de cada entrada
+
       if (!tire) return res.status(404).json({ message: 'Tire not found' });
+
       res.json(tire);
     } catch (error) {
+      console.error('Error en getById:', error);
       res.status(500).json({ message: error.message });
     }
   }
@@ -31,7 +43,8 @@ class TireController {
       serialNumber,
       kilometers = 0,
       vehicle,
-      createdAt
+      createdAt,
+      orderNumber
     } = req.body;
 
     try {
@@ -79,7 +92,9 @@ class TireController {
         status: status,
         date: entryDate,
         type: assignedVehicle ? 'asignacion' : 'estado',
+        orderNumber: orderNumber || null,
       });
+
 
       await newTire.save();
 
@@ -99,7 +114,7 @@ class TireController {
   async updateStatus(req, res) {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, orderNumber } = req.body;
 
       if (!status) {
         return res.status(400).json({ message: 'El estado es requerido.' });
@@ -139,7 +154,8 @@ class TireController {
               date: new Date(),
               vehicle: vehicleId,
               status,
-              type: 'estado'
+              type: 'estado',
+              orderNumber: orderNumber || null
             }
           }
         },
@@ -160,14 +176,15 @@ class TireController {
   async assignVehicle(req, res) {
     try {
       const tireId = req.params.id;
-      const { vehicle: vehicleId, kilometers } = req.body;
+      const { vehicle: vehicleId, kmAlta, orderNumber } = req.body;
 
-      const tire = await tireModel.findById(tireId);
-      if (!tire) {
-        return res.status(404).json({ message: "Cubierta no encontrada" });
+      if (typeof kmAlta !== 'number') {
+        return res.status(400).json({ message: 'Kilómetros de alta (kmAlta) requeridos.' });
       }
 
-      // Verificar si ya está asignada
+      const tire = await tireModel.findById(tireId);
+      if (!tire) return res.status(404).json({ message: "Cubierta no encontrada" });
+
       if (tire.vehicle) {
         return res.status(400).json({
           message: "La cubierta ya está asignada a un vehículo",
@@ -175,24 +192,20 @@ class TireController {
         });
       }
 
-      // Verificar que el vehículo destino exista
       const vehicle = await vehicleModel.findById(vehicleId);
-      if (!vehicle) {
-        return res.status(404).json({ message: "Vehículo no encontrado" });
-      }
+      if (!vehicle) return res.status(404).json({ message: "Vehículo no encontrado" });
 
-      // Asegurarse de que tires sea array
-      if (!Array.isArray(vehicle.tires)) {
-        vehicle.tires = [];
-      }
+      if (!Array.isArray(vehicle.tires)) vehicle.tires = [];
 
-      // Asignar la cubierta
       tire.vehicle = vehicleId;
+
       tire.history.push({
         date: new Date(),
         type: "asignacion",
         vehicle: vehicleId,
-        km: kilometers,
+        status: tire.status,
+        kmAlta,
+        orderNumber: orderNumber || null
       });
 
       vehicle.tires.push(tire._id);
@@ -209,7 +222,7 @@ class TireController {
     } catch (error) {
       console.error("Error al asignar cubierta:", error);
       return res.status(500).json({
-        message: "Error al asignar cubierta",
+        message: `Error al asignar cubierta: ${error.message}`,
         error: error.message,
       });
     }
@@ -218,50 +231,72 @@ class TireController {
   async unassignVehicle(req, res) {
     try {
       const { id } = req.params;
-      const { kilometers } = req.body;
+      const { kmBaja, orderNumber } = req.body;
 
-      if (typeof kilometers !== 'number') {
-        return res.status(400).json({ message: 'Kilómetros son requeridos para desasignar.' });
+      if (typeof kmBaja !== 'number') {
+        return res.status(400).json({ message: 'Kilómetros de baja (kmBaja) requeridos.' });
       }
 
-      const tire = await tireModel.findById(id).populate('vehicle');
+      const tire = await tireModel.findById(id);
       if (!tire) return res.status(404).json({ message: 'Cubierta no encontrada.' });
-      if (!tire.vehicle) {
+
+      const vehicleId = tire.vehicle;
+      if (!vehicleId) {
         return res.status(400).json({ message: 'La cubierta no está asignada a ningún vehículo.' });
       }
 
-      const vehicleId = tire.vehicle._id;
+      const vehicle = await vehicleModel.findById(vehicleId);
+      if (!vehicle) return res.status(404).json({ message: 'Vehículo no encontrado.' });
 
-      const previousData = {
-        vehicle: tire.vehicle,
-        kilometers: tire.kilometers
-      };
+      if (!Array.isArray(vehicle.tires)) vehicle.tires = [];
 
-      await vehicleModel.findByIdAndUpdate(vehicleId, { $pull: { tires: id } });
+      vehicle.tires = vehicle.tires.filter(tid => tid.toString() !== id);
+      await vehicle.save();
 
-      tire.kilometers += kilometers;
+      // Buscar último kmAlta del historial
+      const lastAssign = [...tire.history].reverse().find(h => h.type === 'asignacion' && h.kmAlta != null);
+
+      let kmAlta = lastAssign?.kmAlta ?? 0;
+      const kmRecorridos = kmBaja - kmAlta;
+
+      // Validar que kmBaja sea mayor que kmAlta
+      if (kmRecorridos < 0) {
+        return res.status(400).json({ message: 'Kilometraje de baja no puede ser menor que el de alta.' });
+      }
+
+      // Actualizar km totales de la cubierta
+      tire.kilometers += kmRecorridos;
       tire.vehicle = null;
 
       tire.history.push({
         date: new Date(),
-        vehicle: vehicleId,
-        km: kilometers,
-        status: 'Desasignación',
-        type: 'desasignacion'
+        type: 'desasignacion',
+        vehicle: null,
+        status: tire.status,
+        kmBaja,
+        km: kmRecorridos,
+        orderNumber: orderNumber || null
       });
 
       await tire.save();
 
+      const populatedTire = await tireModel.findById(id).populate('vehicle');
+
       return res.status(200).json({
         message: 'Cubierta desasignada con éxito.',
-        previousData,
-        tire
+        previousData: {
+          vehicle,
+          kmAlta,
+          kmBaja,
+          kmRecorridos
+        },
+        tire: populatedTire
       });
 
     } catch (error) {
       console.error('Error al desasignar cubierta:', error);
       return res.status(500).json({
-        message: 'Error del servidor al desasignar cubierta',
+        message: `Error del servidor al desasignar cubierta: ${error.message}`,
         error: error.message,
       });
     }
@@ -271,10 +306,9 @@ class TireController {
     try {
       const { id } = req.params;
       const allowedFields = ['serialNumber', 'code', 'brand', 'pattern'];
-      const reason = req.body.reason || 'Corrección manual de datos';
-      const date = req.body.date;
+      const { reason, date, orderNumber } = req.body;
 
-      const tire = await tireModel.findById(id).populate('vehicle');
+      const tire = await tireModel.findById(id);
       if (!tire) return res.status(404).json({ message: "La cubierta no existe." });
 
       const previousData = {};
@@ -302,6 +336,7 @@ class TireController {
         status: tire.status,
         editedFields,
         reason,
+        orderNumber: orderNumber || null,
         flag: true
       });
 

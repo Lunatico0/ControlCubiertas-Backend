@@ -16,12 +16,9 @@ const tireSchema = new mongoose.Schema({
   history: [
     {
       date: { type: Date, default: Date.now },
-      km: {
-        type: Number,
-        required: function () {
-          return this.type !== 'estado';
-        }
-      },
+      kmAlta: Number,
+      kmBaja: Number,
+      km: Number,
       status: { type: String },
       vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' },
       type: {
@@ -29,6 +26,7 @@ const tireSchema = new mongoose.Schema({
         enum: ['asignacion', 'desasignacion', 'estado', 'correccion'],
         required: true
       },
+      orderNumber: { type: String },
       editedFields: [String], // solo en correcciones
       reason: String,         // solo en correcciones
       editedBy: String,       // solo en correcciones
