@@ -217,6 +217,7 @@ class TireController {
         message: "Cubierta asignada correctamente",
         tireId: tire._id,
         vehicleId: vehicle._id,
+        tire: populatedTire,
       });
 
     } catch (error) {
