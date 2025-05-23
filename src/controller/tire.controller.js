@@ -211,6 +211,7 @@ class TireController {
       vehicle.tires.push(tire._id);
 
       await tire.save();
+      const populatedTire = await tireModel.findById(tireId).populate('vehicle');
       await vehicle.save();
 
       return res.status(200).json({
