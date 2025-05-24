@@ -1,3 +1,4 @@
+import receiptCounter from "../models/receiptCounter.model.js";
 import tireModel from "../models/tire.model.js";
 import vehicleModel from "../models/vehicle.model.js";
 
@@ -354,6 +355,25 @@ class TireController {
     } catch (error) {
       console.error("Error al corregir datos de la cubierta:", error.message);
       res.status(500).json({ message: "Error del servidor al corregir la cubierta.", error });
+    }
+  }
+
+  async getNextReceiptNumber(req, res) {
+    try {
+      const pointOfSale = 1;
+
+      const counter = await receiptCounter.findOneAndUpdate(
+        { pointOfSale },
+        { $inc: { currentNumber: 1 } },
+        { new: true, upsert: true }
+      );
+
+      const receiptNumber = `${String(pointOfSale).padStart(4, '0')}-${String(counter.currentNumber).padStart(8, '0')}`;
+
+      return res.status(200).json({ receiptNumber });
+    } catch (err) {
+      console.error("Error al obtener el número de recibo:", err);
+      return res.status(500).json({ message: "Error al generar número de recibo" });
     }
   }
 }

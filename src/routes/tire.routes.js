@@ -6,6 +6,7 @@ const router = express.Router();
 
 // Rutas para la gestión de llantas (CRUD completo)
 router.get('/', TireController.getAll);
+router.get('/next-number', TireController.getNextReceiptNumber);
 router.get('/:id', validateTireExists, TireController.getById);
 router.post('/', TireController.create);
 
