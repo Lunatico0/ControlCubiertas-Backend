@@ -134,6 +134,7 @@ class TireService {
 
     await vehicle.save();
     await tire.save();
+    await tire.populate('vehicle');
     return tire;
   }
 
