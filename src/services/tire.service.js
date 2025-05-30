@@ -302,6 +302,7 @@ class TireService {
     tire.kilometers = this.calculateTotalKilometers(tire);
 
     await tire.save();
+    await tire.populate('vehicle');
     return tire;
   }
 
@@ -333,6 +334,7 @@ class TireService {
     }
 
     await tire.save();
+    await tire.populate('vehicle');
     return tire;
   }
 }
