@@ -1,4 +1,14 @@
 import mongoose from "mongoose";
+const historyTypes = [
+  'alta',
+  'asignacion',
+  'desasignacion',
+  'estado',
+  'correccion-alta',
+  'correccion-asignacion',
+  'correccion-desasignacion',
+  'correccion-estado'
+];
 
 const tireSchema = new mongoose.Schema({
   status: {
@@ -23,13 +33,13 @@ const tireSchema = new mongoose.Schema({
       vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' },
       type: {
         type: String,
-        enum: ['asignacion', 'desasignacion', 'estado', 'correccion'],
+        enum: historyTypes,
         required: true
       },
       orderNumber: { type: String },
-      editedFields: [String], // solo en correcciones
-      reason: String,         // solo en correcciones
-      editedBy: String,       // solo en correcciones
+      editedFields: [String],
+      reason: String,
+      editedBy: String,
       flag: { type: Boolean, default: false }
     }
   ],
