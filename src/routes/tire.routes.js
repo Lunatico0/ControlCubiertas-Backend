@@ -12,10 +12,12 @@ router.get('/:id', validateTireExists, TireController.getById);
 router.post('/', TireController.create);
 
 // Cambios con impacto en historial
-router.patch('/:id/status', validateTireExists, TireController.updateStatus);      // cambio de estado con km y history
-router.patch('/:id/assign', validateTireExists, TireController.assignVehicle);     // asignar a vehículo (km Alta)
-router.patch('/:id/unassign', validateTireExists, TireController.unassignVehicle); // desasignar de vehículo (km Baja)
+router.patch('/:id/status', validateTireExists, TireController.updateStatus);     // cambio de estado con km y history
+router.patch('/:id/assign', validateTireExists, TireController.assignVehicle);    // asignar a vehículo (km Alta)
+router.patch('/:id/unassign', validateTireExists, TireController.unassignVehicle);  // desasignar de vehículo (km Baja)
 router.patch('/:id/correct', validateTireExists, TireController.correctData);      // corrección de datos con flag en history
-router.patch('/:id/history/:historyId', validateTireExists, TireController.updateHistory); // actualizar un registro del historial
+router.patch('/:id/history/:historyId', validateTireExists, TireController.updateHistory);    // actualizar un registro del historial
+
+router.post('/:id/history/:historyId/undo', validateTireExists, TireController.undoHistoryEntry); // Deshacer un registro del historial
 
 export default router;

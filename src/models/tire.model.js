@@ -7,7 +7,8 @@ const historyTypes = [
   'correccion-alta',
   'correccion-asignacion',
   'correccion-desasignacion',
-  'correccion-estado'
+  'correccion-estado',
+  'deshacer entrada'
 ];
 
 const tireSchema = new mongoose.Schema({
