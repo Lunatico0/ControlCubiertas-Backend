@@ -33,6 +33,58 @@ class TireService {
     return tire.history.reduce((sum, h) => sum + (h.km || 0), 0);
   }
 
+  recalculateTireState(tire) {
+    // Reset estado base
+    let currentVehicle = null;
+    let currentStatus = null;
+    let totalKilometers = 0;
+
+    // Recalcular en orden cronológico
+    const sortedHistory = [...tire.history].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    for (const entry of sortedHistory) {
+      switch (entry.type) {
+        case "alta":
+          currentStatus = entry.status;
+          if (entry.km) totalKilometers = entry.km;
+          break;
+
+        case "asignacion":
+          currentVehicle = entry.vehicle;
+          break;
+
+        case "desasignacion":
+          if (entry.km) totalKilometers += entry.km;
+          currentVehicle = null;
+          break;
+
+        case "estado":
+          currentStatus = entry.status;
+          break;
+
+        case "correccion-asignacion":
+        case "correccion-desasignacion":
+          // seguir la lógica original (asignación/desasignación)
+          if (entry.kmAlta || entry.kmBaja) {
+            const km = entry.kmBaja - entry.kmAlta;
+            if (!isNaN(km)) totalKilometers += km;
+          }
+          break;
+
+        case "correccion-alta":
+          // corrección de datos base
+          break;
+
+        default:
+          break;
+      }
+    }
+
+    tire.status = currentStatus;
+    tire.vehicle = currentVehicle;
+    tire.kilometers = totalKilometers;
+  }
+
   async getNextOrderNumber() {
     const currentYear = new Date().getFullYear().toString();
 
@@ -196,10 +248,15 @@ class TireService {
 
     const previousData = {};
     const editedFields = [];
+    const fieldChanges = {};
 
     for (const field of allowedFields) {
       if (data[field] && data[field] !== tire[field]) {
         previousData[field] = tire[field];
+        fieldChanges[field] = {
+          before: tire[field],
+          after: data[field]
+        };
         tire[field] = data[field];
         editedFields.push(field);
       }
@@ -222,10 +279,12 @@ class TireService {
     });
 
     await tire.save();
+    await tire.populate('vehicle');
 
     return {
       previousData,
       editedFields,
+      fieldChanges,
       tire
     };
   }
@@ -248,12 +307,19 @@ class TireService {
     };
 
     const editedFields = [];
+    const fieldChanges = {};
+
     ['kmAlta', 'kmBaja', 'status', 'vehicle'].forEach(field => {
       if (Object.hasOwn(updates.form, field)) {
         const newVal = updates.form[field];
         const oldVal = original[field];
+
         if (compareValues(oldVal, newVal)) {
           editedFields.push(field);
+          fieldChanges[field] = {
+            before: oldVal,
+            after: newVal
+          };
         }
       }
     });
@@ -299,44 +365,35 @@ class TireService {
     };
 
     tire.history.push(newEntry);
-    tire.kilometers = this.calculateTotalKilometers(tire);
+    tire.kilometers = this.recalculateTireState(tire);
 
     await tire.save();
     await tire.populate('vehicle');
-    return tire;
+
+    return {
+      editedFields,
+      fieldChanges,
+      tire
+    };
   }
 
   async undoHistoryEntry(tireId, historyId) {
     const tire = await this.getById(tireId);
 
-    const entryIndex = tire.history.findIndex(entry => entry._id.toString() === historyId);
-    if (entryIndex === -1) throw new Error('Entrada de historial no encontrada.');
+    // Eliminar la entrada por ID
+    const index = tire.history.findIndex(entry => entry._id.toString() === historyId);
+    if (index === -1) throw new Error("Entrada de historial no encontrada");
 
-    const entryToRemove = tire.history[entryIndex];
+    tire.history.splice(index, 1); // Eliminar del array
 
-    if (!entryToRemove.type.startsWith('correccion')) {
-      throw new Error('Solo se pueden deshacer entradas de tipo corrección.');
-    }
-
-    tire.history.splice(entryIndex, 1);
-
-    const originalOrder = entryToRemove.reason?.match(/\d+/)?.[0];
-    const originalEntry = tire.history.find(entry =>
-      entry.orderNumber === originalOrder || entry._id.toString() === originalOrder
-    );
-
-    if (originalEntry) {
-      originalEntry.flag = false;
-      originalEntry.type = originalEntry.type.replace('correccion-', '');
-      originalEntry.reason = '';
-      originalEntry.correctedAt = null;
-      originalEntry.editedFields = [];
-    }
+    // Recalcular estado
+    this.recalculateTireState(tire);
 
     await tire.save();
     await tire.populate('vehicle');
     return tire;
   }
+
 }
 
 export default new TireService();
