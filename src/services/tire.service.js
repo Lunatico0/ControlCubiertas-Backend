@@ -85,40 +85,6 @@ class TireService {
     tire.kilometers = totalKilometers;
   }
 
-  async getNextOrderNumber() {
-    const currentYear = new Date().getFullYear().toString();
-
-    // Buscar todos los orderNumbers válidos del año actual
-    const tires = await tireModel.find({
-      'history.orderNumber': { $regex: `^${currentYear}-\\d{6}$` }
-    }, {
-      'history.orderNumber': 1
-    });
-
-    // Extraer todos los orderNumbers del año actual
-    const allOrderNumbers = tires.flatMap(tire =>
-      tire.history
-        .filter(h => h.orderNumber && h.orderNumber.startsWith(currentYear))
-        .map(h => h.orderNumber)
-    );
-
-    let maxNumber = 0;
-
-    for (const order of allOrderNumbers) {
-      const parts = order.split('-');
-      if (parts.length === 2) {
-        const num = parseInt(parts[1], 10);
-        if (!isNaN(num) && num > maxNumber) {
-          maxNumber = num;
-        }
-      }
-    }
-
-    const nextNumber = maxNumber + 1;
-    const padded = String(nextNumber).padStart(6, '0');
-    return `${currentYear}-${padded}`;
-  }
-
   async createTire(data) {
     const {
       status,

@@ -111,16 +111,6 @@ class TireController {
     }
   }
 
-  async getNextOrderNumber(req, res) {
-    try {
-      const next = await TireService.getNextOrderNumber();
-      res.status(200).json({ nextOrderNumber: next });
-    } catch (err) {
-      console.error('Error en getNextOrderNumber:', err);
-      res.status(500).json({ message: 'Error generando número de orden' });
-    }
-  }
-
   async updateHistory(req, res) {
     try {
       const { id, historyId } = req.params;
