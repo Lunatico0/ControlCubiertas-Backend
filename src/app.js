@@ -1,44 +1,26 @@
 import express from 'express';
 import './db.js';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
 import { config } from 'dotenv';
+import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 
 config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PORT = process.env.PORT || 4000;
 const app = express();
+const PORT = process.env.PORT || 4000;
 
 // Middlewares
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://controlcubiertas-backend.vercel.app'],
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Configuración específica para Swagger en Vercel
+// Swagger UI (solo para desarrollo local)
 app.use('/api-docs', swaggerUi.serve);
 app.get('/api-docs', swaggerUi.setup(specs, swaggerUiOptions));
 
-// Ruta alternativa para obtener el JSON de Swagger
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(specs);
-});
-
-// Ruta para servir la documentación como JSON plano (útil para debugging)
-app.get('/swagger.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.json(specs);
-});
-
+// Rutas de documentación
 app.get('/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(specs);
@@ -48,13 +30,12 @@ app.get('/api-docs.json', (req, res) => {
 app.use('/api/tires', tireRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 
-// Ruta de bienvenida con información de la API
+// Rutas básicas
 app.get('/', (req, res) => {
   res.json({
     message: 'API de Gestión de Cubiertas',
-    version: '1.0.0',
+    version: '1.2.0',
     documentation: '/api-docs',
-    swagger_json: '/api-docs.json',
     environment: process.env.NODE_ENV || 'development',
     endpoints: {
       tires: '/api/tires',
@@ -64,7 +45,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Ruta de health check
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
@@ -91,10 +71,12 @@ app.use('*', (req, res) => {
   });
 });
 
-// Solo iniciar el servidor si no estamos en Vercel
+// Iniciar servidor solo en desarrollo
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
     console.log(`📚 Documentación disponible en: http://localhost:${PORT}/api-docs`);
   });
-};
+}
+
+export default app;
