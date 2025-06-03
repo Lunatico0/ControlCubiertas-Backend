@@ -2,33 +2,8 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/src/app-alternative.js"
-    },
-    {
-      "source": "/api-docs",
-      "destination": "/src/app-alternative.js"
-    },
-    {
-      "source": "/api-docs.json",
-      "destination": "/src/app-alternative.js"
-    },
-    {
-      "source": "/swagger.json",
-      "destination": "/src/app-alternative.js"
-    },
-    {
-      "source": "/health",
-      "destination": "/src/app-alternative.js"
-    },
-    {
       "source": "/(.*)",
-      "destination": "/src/app-alternative.js"
+      "destination": "/api"
     }
-  ],
-  "functions": {
-    "src/app-alternative.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
