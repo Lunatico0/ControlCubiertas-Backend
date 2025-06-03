@@ -1,42 +1,29 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "src/app-alternative.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api-docs",
-      "dest": "/src/app-alternative.js",
-      "headers": {
-        "Cache-Control": "no-cache, no-store, must-revalidate"
-      }
+      "source": "/api/(.*)",
+      "destination": "/src/app-alternative.js"
     },
     {
-      "src": "/api-docs.json",
-      "dest": "/src/app-alternative.js"
+      "source": "/api-docs",
+      "destination": "/src/app-alternative.js"
     },
     {
-      "src": "/swagger.json",
-      "dest": "/src/app-alternative.js"
+      "source": "/api-docs.json",
+      "destination": "/src/app-alternative.js"
     },
     {
-      "src": "/api/(.*)",
-      "dest": "/src/app-alternative.js"
+      "source": "/swagger.json",
+      "destination": "/src/app-alternative.js"
     },
     {
-      "src": "/health",
-      "dest": "/src/app-alternative.js"
+      "source": "/health",
+      "destination": "/src/app-alternative.js"
     },
     {
-      "src": "/",
-      "dest": "/src/app-alternative.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/src/app-alternative.js"
+      "source": "/(.*)",
+      "destination": "/src/app-alternative.js"
     }
   ],
   "functions": {
