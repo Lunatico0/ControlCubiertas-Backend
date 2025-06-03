@@ -212,7 +212,7 @@ class TireService {
     };
   }
 
-  async correctHistoryEntry (tireId, historyId, updates) {
+  async correctHistoryEntry(tireId, historyId, updates) {
     const tire = await this.getDocById(tireId);
     const original = await historyModel.findById(historyId).populate('vehicle').populate('corrects');
     const history = await historyModel.find({ tire: tire._id }).sort({ date: 1 });
@@ -344,45 +344,58 @@ class TireService {
 
     if (!original) throw new Error("Entrada de historial no encontrada");
 
-    // Definir razones para tooltip
+    console.log(`🔄 Deshaciendo entrada tipo: ${original.type}`);
+
+    // Definir razones
     const reasonOriginal = `Deshecho en la orden N°${correctionOrder}`;
-    const reasonCorrection = `Deshacer entrada N°${original.orderNumber}`;
+    const reasonUndo = `Deshacer entrada N°${original.orderNumber}`;
     const userExtra = formData.reason?.trim() || '';
+    const reasonFinal = userExtra && userExtra !== reasonUndo
+      ? `${reasonUndo} ${userExtra}`
+      : reasonUndo;
 
-    const reasonFinal = userExtra && userExtra !== reasonCorrection
-      ? `${reasonCorrection} ${userExtra}`
-      : reasonCorrection;
-
-    // Marcar entrada original como corregida
+    // Marcar entrada original como deshecha
     original.flag = true;
     original.editedFields = ['Deshacer entrada'];
     original.correctedAt = new Date();
     original.reason = reasonOriginal;
     original.type = toCorrectionType(original.type);
-
     await original.save();
 
-    // Clonar la entrada anterior
-    const clone = original.toObject();
-    delete clone._id;
+    let revertedData = {};
 
-    // Nueva entrada tipo deshacer (sin valores heredados innecesarios)
-    const newEntry = {
-      ...clone,
-      tire: tireId, // ✅ referencia explícita
-      flag: true,
-      editedFields: ['Deshacer entrada'],
-      reason: reasonFinal,
-      date: new Date(),
-      orderNumber: correctionOrder,
-      type: toCorrectionType(original.type),
-      corrects: original._id // opcional si querés rastrear esta conexión
-    };
+    // 🎯 LÓGICA ESPECÍFICA SEGÚN EL TIPO DE ENTRADA
+    switch (original.type) {
+      case 'asignacion':
+      case 'correccion-asignacion':
+        // Deshacer asignación = desasignar cubierta
+        revertedData = await this.handleUndoAssignment(tire, original, history, correctionOrder, reasonFinal);
+        break;
 
-    await historyModel.create(newEntry);
+      case 'desasignacion':
+      case 'correccion-desasignacion':
+        // Deshacer desasignación = reasignar a vehículo anterior
+        revertedData = await this.handleUndoUnassignment(tire, original, history, correctionOrder, reasonFinal);
+        break;
+
+      case 'estado':
+      case 'correccion-estado':
+        // Deshacer cambio de estado = volver al estado anterior
+        revertedData = await this.handleUndoStatusChange(tire, original, history, correctionOrder, reasonFinal);
+        break;
+
+      case 'alta':
+      case 'correccion-alta':
+        // Deshacer alta = marcar como eliminada (no implementado por seguridad)
+        throw new Error('No se puede deshacer el alta de una cubierta');
+
+      default:
+        throw new Error(`Tipo de entrada no soportado para deshacer: ${original.type}`);
+    }
 
     // Recalcular estado final
-    recalculateTire(tire, history);
+    const updatedHistory = await historyModel.find({ tire: tireId }).sort({ date: 1 });
+    recalculateTire(tire, updatedHistory);
 
     await tire.save();
     await tire.populate('vehicle');
@@ -390,7 +403,151 @@ class TireService {
     return {
       tire,
       correctedEntryId: historyId,
-      newEntry: newEntry
+      newEntry: revertedData.newEntry,
+      revertedTo: revertedData.revertedTo
+    };
+  }
+
+  async handleUndoAssignment(tire, original, history, correctionOrder, reason) {
+    console.log('📤 Deshaciendo asignación - desasignando cubierta');
+
+    // Crear entrada de desasignación sin kmAlta ni kmBaja
+    const newEntry = {
+      tire: tire._id,
+      type: 'desasignacion',
+      date: new Date(),
+      orderNumber: correctionOrder,
+      reason: reason,
+      flag: true,
+      editedFields: ['Deshacer asignación'],
+      vehicle: null, // Desasignar
+      // No incluimos kmAlta ni kmBaja para que queden como null/undefined
+      km: 0,
+      status: tire.status,
+      corrects: original._id
+    };
+
+    await historyModel.create(newEntry);
+
+    return {
+      newEntry,
+      revertedTo: 'Cubierta desasignada'
+    };
+  }
+
+  async handleUndoUnassignment(tire, original, history, correctionOrder, reason) {
+    console.log('📥 Deshaciendo desasignación - reasignando cubierta');
+
+    // Buscar la última asignación antes de la desasignación original
+    const lastAssignment = [...history]
+      .reverse()
+      .find(entry =>
+        (entry.type === 'asignacion' || entry.type === 'correccion-asignacion') &&
+        new Date(entry.date) < new Date(original.date) &&
+        !entry.flag
+      );
+
+    if (!lastAssignment) {
+      throw new Error('No se encontró asignación anterior para revertir');
+    }
+
+    console.log(`🔍 Última asignación encontrada: ${lastAssignment._id}, kmAlta=${lastAssignment.kmAlta}`);
+
+    // Obtener el kmAlta correcto de la última asignación
+    const correctKmAlta = lastAssignment.kmAlta || 0;
+
+    // Si es una corrección de desasignación, necesitamos revertir los km
+    let revertedKmBaja = original.kmBaja || 0;
+
+    if (original.type === 'correccion-desasignacion' && original.corrects) {
+      // Buscar la entrada original que fue corregida
+      const originalDesassignment = history.find(h => h._id.toString() === original.corrects.toString());
+      if (originalDesassignment) {
+        revertedKmBaja = originalDesassignment.kmBaja || 0;
+        console.log(`🔄 Revirtiendo corrección: kmBaja de ${original.kmBaja} a ${revertedKmBaja}`);
+      }
+    }
+
+    // Crear entrada de reasignación con el kmAlta correcto
+    const newEntry = {
+      tire: tire._id,
+      type: 'asignacion',
+      date: new Date(),
+      orderNumber: correctionOrder,
+      reason: reason,
+      flag: true,
+      editedFields: ['Deshacer desasignación'],
+      vehicle: lastAssignment.vehicle,
+      kmAlta: correctKmAlta, // Usar el kmAlta de la asignación original
+      status: tire.status,
+      corrects: original._id
+    };
+
+    console.log(`✅ Creando nueva asignación con kmAlta=${correctKmAlta} y vehículo=${lastAssignment.vehicle}`);
+
+    await historyModel.create(newEntry);
+
+    return {
+      newEntry,
+      revertedTo: `Cubierta reasignada al vehículo ${lastAssignment.vehicle} con kmAlta=${correctKmAlta}`
+    };
+  }
+
+  async handleUndoStatusChange(tire, original, history, correctionOrder, reason) {
+    console.log('🔄 Deshaciendo cambio de estado');
+
+    // Buscar el estado anterior
+    const previousStatusEntry = [...history]
+      .reverse()
+      .find(entry =>
+        (entry.type === 'estado' || entry.type === 'alta') &&
+        new Date(entry.date) < new Date(original.date) &&
+        !entry.flag &&
+        entry.status
+      );
+
+    let revertedStatus = 'Nueva'; // Estado por defecto
+
+    if (previousStatusEntry) {
+      revertedStatus = previousStatusEntry.status;
+    } else if (original.type === 'correccion-estado' && original.corrects) {
+      // Si es una corrección, buscar la entrada original
+      const originalStatusChange = history.find(h => h._id.toString() === original.corrects.toString());
+      if (originalStatusChange) {
+        // Buscar el estado anterior a la entrada original
+        const evenEarlierStatus = [...history]
+          .reverse()
+          .find(entry =>
+            (entry.type === 'estado' || entry.type === 'alta') &&
+            new Date(entry.date) < new Date(originalStatusChange.date) &&
+            !entry.flag &&
+            entry.status
+          );
+        revertedStatus = evenEarlierStatus ? evenEarlierStatus.status : 'Nueva';
+      }
+    }
+
+    console.log(`🔄 Revirtiendo estado de "${original.status}" a "${revertedStatus}"`);
+
+    // Crear entrada de cambio de estado
+    const newEntry = {
+      tire: tire._id,
+      type: 'estado',
+      date: new Date(),
+      orderNumber: correctionOrder,
+      reason: reason,
+      flag: true,
+      editedFields: ['Deshacer cambio de estado'],
+      status: revertedStatus,
+      vehicle: tire.vehicle,
+      corrects: original._id
+    };
+
+    await historyModel.create(newEntry);
+
+    return {
+      newEntry,
+      revertedTo: `Estado revertido a "${revertedStatus}"`
     };
   }
 }
