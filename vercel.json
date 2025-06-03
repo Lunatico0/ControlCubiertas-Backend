@@ -9,7 +9,10 @@
   "routes": [
     {
       "src": "/api-docs",
-      "dest": "/src/app-alternative.js"
+      "dest": "/src/app-alternative.js",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
     },
     {
       "src": "/api-docs.json",
