@@ -8,11 +8,27 @@
   ],
   "routes": [
     {
-      "src": "/api-docs/(.*)",
+      "src": "/api-docs",
+      "dest": "/src/app-alternative.js"
+    },
+    {
+      "src": "/api-docs.json",
+      "dest": "/src/app-alternative.js"
+    },
+    {
+      "src": "/swagger.json",
       "dest": "/src/app-alternative.js"
     },
     {
       "src": "/api/(.*)",
+      "dest": "/src/app-alternative.js"
+    },
+    {
+      "src": "/health",
+      "dest": "/src/app-alternative.js"
+    },
+    {
+      "src": "/",
       "dest": "/src/app-alternative.js"
     },
     {
