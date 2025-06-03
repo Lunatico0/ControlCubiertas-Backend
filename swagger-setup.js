@@ -211,12 +211,33 @@ const swaggerOptions = {
       }
     }
   },
-  apis: ['./src/routes/*.js', './src/controller/*.js'], // Rutas donde están los comentarios de Swagger
+  apis: ['./src/routes/*.js', './src/controller/*.js'],
 };
 
 const specs = swaggerJsdoc(swaggerOptions);
 
-export { specs, swaggerUi };
+// Configuración personalizada para Vercel
+const swaggerUiOptions = {
+  customCss: `
+    .swagger-ui .topbar { display: none }
+    .swagger-ui .info { margin: 50px 0 }
+    .swagger-ui .scheme-container { background: #fafafa; padding: 30px 0 }
+  `,
+  customSiteTitle: "API Gestión de Cubiertas",
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    docExpansion: 'none',
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+    // Configuración específica para Vercel
+    url: undefined, // Importante: no definir URL aquí
+    urls: undefined,
+    spec: specs // Pasar el spec directamente
+  }
+};
 
-console.log("✅ Configuración de Swagger creada");
-console.log("Esquemas definidos:", Object.keys(swaggerOptions.definition.components.schemas));
+export { specs, swaggerUi, swaggerUiOptions };
+
+console.log("✅ Configuración de Swagger creada para Vercel");

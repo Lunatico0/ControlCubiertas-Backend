@@ -8,8 +8,21 @@
   ],
   "routes": [
     {
+      "src": "/api-docs/(.*)",
+      "dest": "/src/app.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/src/app.js"
+    },
+    {
       "src": "/(.*)",
-      "dest": "src/app.js"
+      "dest": "/src/app.js"
     }
-  ]
+  ],
+  "functions": {
+    "src/app.js": {
+      "maxDuration": 30
+    }
+  }
 }
