@@ -1,9 +1,11 @@
 import tireModel from '../models/tire.model.js';
 import vehicleModel from '../models/vehicle.model.js';
+import historyModel from '../models/history.model.js'
+import { toCorrectionType, recalculateTire, addHistoryEntry } from '../utils/utils.js';
 
 class TireService {
   async getAll() {
-    const populatedTires = await tireModel.find().populate('vehicle').populate('history.vehicle');
+    const populatedTires = await tireModel.find().populate('vehicle')
     if (!populatedTires || populatedTires.length === 0) {
       throw new Error('No se encontraron cubiertas');
     }
@@ -11,7 +13,20 @@ class TireService {
   }
 
   async getById(id) {
-    const tire = await tireModel.findById(id).populate('vehicle').populate('history.vehicle');
+    const tire = await tireModel.findById(id).populate('vehicle');
+    if (!tire) throw new Error('Cubierta no encontrada');
+
+    const history = await historyModel
+      .find({ tire: id })
+      .populate('vehicle')
+      .populate('corrects')
+      .sort({ date: 1 });
+
+    return { ...tire.toObject(), history };
+  }
+
+  async getDocById(id) {
+    const tire = await tireModel.findById(id).populate('vehicle');
     if (!tire) throw new Error('Cubierta no encontrada');
     return tire;
   }
@@ -20,69 +35,6 @@ class TireService {
     const vehicle = await vehicleModel.findById(id);
     if (!vehicle) throw new Error('Vehículo no encontrado');
     return vehicle;
-  }
-
-  addHistoryEntry(tire, data) {
-    tire.history.push({
-      date: new Date(),
-      ...data
-    });
-  }
-
-  calculateTotalKilometers(tire) {
-    return tire.history.reduce((sum, h) => sum + (h.km || 0), 0);
-  }
-
-  recalculateTireState(tire) {
-    // Reset estado base
-    let currentVehicle = null;
-    let currentStatus = null;
-    let totalKilometers = 0;
-
-    // Recalcular en orden cronológico
-    const sortedHistory = [...tire.history].sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    for (const entry of sortedHistory) {
-      switch (entry.type) {
-        case "alta":
-          currentStatus = entry.status;
-          if (entry.km) totalKilometers = entry.km;
-          break;
-
-        case "asignacion":
-          currentVehicle = entry.vehicle;
-          break;
-
-        case "desasignacion":
-          if (entry.km) totalKilometers += entry.km;
-          currentVehicle = null;
-          break;
-
-        case "estado":
-          currentStatus = entry.status;
-          break;
-
-        case "correccion-asignacion":
-        case "correccion-desasignacion":
-          // seguir la lógica original (asignación/desasignación)
-          if (entry.kmAlta || entry.kmBaja) {
-            const km = entry.kmBaja - entry.kmAlta;
-            if (!isNaN(km)) totalKilometers += km;
-          }
-          break;
-
-        case "correccion-alta":
-          // corrección de datos base
-          break;
-
-        default:
-          break;
-      }
-    }
-
-    tire.status = currentStatus;
-    tire.vehicle = currentVehicle;
-    tire.kilometers = totalKilometers;
   }
 
   async createTire(data) {
@@ -113,7 +65,10 @@ class TireService {
       createdAt: entryDate
     });
 
-    newTire.history.push({
+    await newTire.save();
+
+    await historyModel.create({
+      tire: newTire._id,
       vehicle: vehicle || null,
       km: kilometers,
       status,
@@ -122,19 +77,16 @@ class TireService {
       orderNumber: orderNumber || null,
     });
 
-    await newTire.save();
-
     if (vehicle) {
       await vehicleModel.findByIdAndUpdate(vehicle, {
         $addToSet: { tires: newTire._id }
       });
     }
-
     return newTire;
   }
 
   async assignVehicle(tireId, vehicleId, kmAlta, orderNumber) {
-    const tire = await this.getById(tireId);
+    const tire = await this.getDocById(tireId);
     const vehicle = await this.findVehicleById(vehicleId);
 
     if (tire.vehicle) throw new Error('La cubierta ya está asignada a un vehículo');
@@ -142,7 +94,7 @@ class TireService {
     tire.vehicle = vehicleId;
     vehicle.tires.push(tire._id);
 
-    this.addHistoryEntry(tire, {
+    await addHistoryEntry(tire._id, {
       type: 'asignacion',
       vehicle: vehicleId,
       status: tire.status,
@@ -157,10 +109,15 @@ class TireService {
   }
 
   async unassignVehicle(tireId, kmBaja, orderNumber) {
-    const tire = await this.getById(tireId);
+    const tire = await this.getDocById(tireId);
     const vehicle = await this.findVehicleById(tire.vehicle);
 
-    const lastAssign = [...tire.history].reverse().find(h => h.type === 'asignacion' && h.kmAlta != null);
+    const history = await historyModel
+      .find({ tire: tireId })
+      .sort({ date: 1 });
+
+    const lastAssign = [...history].reverse().find(h => h.type === 'asignacion' && h.kmAlta != null);
+
     const kmAlta = lastAssign?.kmAlta ?? 0;
     const kmRecorridos = kmBaja - kmAlta;
 
@@ -169,7 +126,7 @@ class TireService {
     tire.vehicle = null;
     tire.kilometers += kmRecorridos;
 
-    this.addHistoryEntry(tire, {
+    await addHistoryEntry(tire._id, {
       type: 'desasignacion',
       status: tire.status,
       kmBaja,
@@ -191,12 +148,12 @@ class TireService {
   }
 
   async updateTireStatus(tireId, status, orderNumber) {
-    const tire = await this.getById(tireId);
+    const tire = await this.getDocById(tireId);
     const previousStatus = tire.status;
 
     tire.status = status;
 
-    this.addHistoryEntry(tire, {
+    await addHistoryEntry(tire._id, {
       type: 'estado',
       vehicle: tire.vehicle,
       status,
@@ -208,7 +165,7 @@ class TireService {
   }
 
   async correctData(tireId, data) {
-    const tire = await this.getById(tireId);
+    const tire = await this.getDocById(tireId);
     const allowedFields = ['serialNumber', 'code', 'brand', 'pattern'];
     const { reason, date, orderNumber } = data;
 
@@ -232,7 +189,7 @@ class TireService {
 
     const parsedDate = date && !isNaN(new Date(date)) ? new Date(date) : new Date();
 
-    this.addHistoryEntry(tire, {
+    await addHistoryEntry(tire._id, {
       type: 'correccion-alta',
       date: parsedDate,
       km: tire.kilometers || 0,
@@ -255,9 +212,10 @@ class TireService {
     };
   }
 
-  async correctHistoryEntry(tireId, historyId, updates) {
-    const tire = await this.getById(tireId);
-    const original = tire.history.id(historyId);
+  async correctHistoryEntry (tireId, historyId, updates) {
+    const tire = await this.getDocById(tireId);
+    const original = await historyModel.findById(historyId).populate('vehicle').populate('corrects');
+    const history = await historyModel.find({ tire: tire._id }).sort({ date: 1 });
     const originalOrder = original.orderNumber;
     const correctionOrder = updates.form.orderNumber;
 
@@ -299,7 +257,9 @@ class TireService {
     original.editedFields = editedFields;
     original.reason = reasonOriginal;
     original.correctedAt = new Date();
-    original.type = original.type.startsWith('correccion-') ? original.type : `correccion-${original.type}`;
+    original.type = toCorrectionType(original.type);
+
+    await original.save();
 
     if (editedFields.includes('status')) {
       tire.status = updates.form.status;
@@ -316,22 +276,55 @@ class TireService {
       ? `${reasonCorrection} ${userExtra}`
       : reasonCorrection;
 
+    // ✅ AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL
+    let kmFinal = undefined;
+
+    // Para correcciones de desasignación, calcular correctamente los km
+    if (original.type === 'desasignacion' || original.type === 'correccion-desasignacion') {
+      // Obtener kmAlta y kmBaja finales
+      const kmAltaFinal = updates.form.kmAlta ?? original.kmAlta ?? 0;
+      const kmBajaFinal = updates.form.kmBaja ?? original.kmBaja ?? 0;
+
+      // Si no tenemos kmAlta en la entrada original, buscar la última asignación
+      let kmAltaToUse = kmAltaFinal;
+      if (!kmAltaFinal && !original.kmAlta) {
+        // Buscar la última asignación antes de esta entrada
+        const lastAssignment = [...history]
+          .reverse()
+          .find(h =>
+            h.type === 'asignacion' &&
+            new Date(h.date) < new Date(original.date) &&
+            h.kmAlta != null
+          );
+        kmAltaToUse = lastAssignment?.kmAlta ?? 0;
+      }
+
+      // Calcular los kilómetros recorridos
+      kmFinal = kmBajaFinal - kmAltaToUse;
+
+      console.log(`Calculando km para corrección:`);
+      console.log(`  kmBaja: ${kmBajaFinal}`);
+      console.log(`  kmAlta: ${kmAltaToUse}`);
+      console.log(`  km calculado: ${kmFinal}`);
+    }
+
     const newEntry = {
       ...clone,
       ...updates.form,
-      type: original.type,
+      tire: tireId,
+      type: toCorrectionType(original.type),
       flag: true,
       editedFields,
       date: new Date(),
       reason: reasonFinal,
       vehicle: updates.form.vehicle || null,
-      km: updates.form.kmAlta && updates.form.kmBaja
-        ? updates.form.kmBaja - updates.form.kmAlta
-        : undefined,
+      corrects: original._id,
+      km: kmFinal, // ✅ Usar el valor calculado correctamente
     };
 
-    tire.history.push(newEntry);
-    tire.kilometers = this.recalculateTireState(tire);
+    const inserted = await historyModel.create(newEntry);
+    const updatedHistory = await historyModel.find({ tire: tireId }).sort({ date: 1 });
+    recalculateTire(tire, updatedHistory);
 
     await tire.save();
     await tire.populate('vehicle');
@@ -341,25 +334,65 @@ class TireService {
       fieldChanges,
       tire
     };
-  }
+  };
 
-  async undoHistoryEntry(tireId, historyId) {
-    const tire = await this.getById(tireId);
+  async undoHistoryEntry(tireId, historyId, formData) {
+    const tire = await this.getDocById(tireId);
+    const original = await historyModel.findById(historyId).populate('vehicle').populate('corrects');
+    const history = await historyModel.find({ tire: tire._id }).sort({ date: 1 });
+    const correctionOrder = formData.orderNumber;
 
-    // Eliminar la entrada por ID
-    const index = tire.history.findIndex(entry => entry._id.toString() === historyId);
-    if (index === -1) throw new Error("Entrada de historial no encontrada");
+    if (!original) throw new Error("Entrada de historial no encontrada");
 
-    tire.history.splice(index, 1); // Eliminar del array
+    // Definir razones para tooltip
+    const reasonOriginal = `Deshecho en la orden N°${correctionOrder}`;
+    const reasonCorrection = `Deshacer entrada N°${original.orderNumber}`;
+    const userExtra = formData.reason?.trim() || '';
 
-    // Recalcular estado
-    this.recalculateTireState(tire);
+    const reasonFinal = userExtra && userExtra !== reasonCorrection
+      ? `${reasonCorrection} ${userExtra}`
+      : reasonCorrection;
+
+    // Marcar entrada original como corregida
+    original.flag = true;
+    original.editedFields = ['Deshacer entrada'];
+    original.correctedAt = new Date();
+    original.reason = reasonOriginal;
+    original.type = toCorrectionType(original.type);
+
+    await original.save();
+
+    // Clonar la entrada anterior
+    const clone = original.toObject();
+    delete clone._id;
+
+    // Nueva entrada tipo deshacer (sin valores heredados innecesarios)
+    const newEntry = {
+      ...clone,
+      tire: tireId, // ✅ referencia explícita
+      flag: true,
+      editedFields: ['Deshacer entrada'],
+      reason: reasonFinal,
+      date: new Date(),
+      orderNumber: correctionOrder,
+      type: toCorrectionType(original.type),
+      corrects: original._id // opcional si querés rastrear esta conexión
+    };
+
+    await historyModel.create(newEntry);
+
+    // Recalcular estado final
+    recalculateTire(tire, history);
 
     await tire.save();
     await tire.populate('vehicle');
-    return tire;
-  }
 
+    return {
+      tire,
+      correctedEntryId: historyId,
+      newEntry: newEntry
+    };
+  }
 }
 
 export default new TireService();

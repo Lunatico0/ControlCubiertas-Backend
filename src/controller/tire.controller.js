@@ -71,6 +71,10 @@ class TireController {
       const { id } = req.params;
       const { kmBaja, orderNumber } = req.body;
 
+      if (typeof kmBaja !== 'number') {
+        return res.status(400).json({ message: 'Kilómetros de baja (kmBaja) requeridos.' });
+      }
+
       const result = await TireService.unassignVehicle(id, kmBaja, orderNumber);
       res.status(200).json({
         message: 'Cubierta desasignada con éxito.',
@@ -114,8 +118,11 @@ class TireController {
   async updateHistory(req, res) {
     try {
       const { id, historyId } = req.params;
-      const result = await TireService.correctHistoryEntry(id, historyId, req.body);
-      res.status(200).json({ message: 'Historial actualizado correctamente.', tire: result });
+
+      const { tire, ...rest } = await TireService.correctHistoryEntry(id, historyId, req.body);
+
+      res.status(200).json({ message: 'Historial actualizado correctamente.', tire, ...rest });
+
     } catch (error) {
       console.error('Error en updateHistory:', error);
       res.status(500).json({ message: error.message });
@@ -125,8 +132,13 @@ class TireController {
   async undoHistoryEntry(req, res) {
     try {
       const { id, historyId } = req.params;
-      const tire = await TireService.undoHistoryEntry(id, historyId);
-      res.status(200).json({ message: 'Entrada de historial deshecha correctamente.', tire });
+      const formData = req.body;
+
+      const { tire, newEntry, correctedEntryId } = await TireService.undoHistoryEntry(id, historyId, formData);
+
+      res.status(200).json({
+        message: 'Entrada de historial deshecha correctamente.', tire, newEntry, correctedEntryId
+      });
     } catch (error) {
       console.error('Error en undoHistoryEntry:', error);
       res.status(500).json({ message: error.message });

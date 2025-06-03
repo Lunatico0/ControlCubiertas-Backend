@@ -1,0 +1,35 @@
+
+|   .env
+|   .gitignore
+|   package-lock.json
+|   package.json
+|   README.md
+|   tree.txt
+|   vercel.json
+|
+\---src
+    |   app.js
+    |   db.js
+    |
+    +---controller
+    |       tire.controller.js
+    |       vehicle.controller.js
+    |
+    +---middleware
+    |       tireExists.js
+    |       vehicleExists.js
+    |
+    +---models
+    |       receiptCounter.model.js
+    |       tire.model.js
+    |       vehicle.model.js
+    |
+    +---routes
+    |       tire.routes.js
+    |       vehicle.routes.js
+    |
+    +---services
+    |       tire.service.js
+    |
+    \---utils
+            utils.js
