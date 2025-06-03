@@ -13,10 +13,24 @@ config();
 const app = express();
 
 // Middlewares
+// app.use(cors());
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://controlcubiertas-backend.vercel.app'],
-  credentials: true
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:8080',
+    'https://controlcubiertas-backend.vercel.app',
+    'https://control-cubiertas.vercel.app/'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Middleware para manejar preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -94,6 +108,7 @@ app.get('/api-docs.json', (req, res) => {
   res.send(specs);
 });
 
+// ✅ Rutas principales (DESPUÉS de CORS)
 app.use('/api/tires', tireRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 
@@ -104,12 +119,17 @@ app.get('/', (req, res) => {
     version: '1.2.0',
     documentation: '/api-docs',
     endpoints: { tires: '/api/tires', vehicles: '/api/vehicles' },
-    status: 'online'
+    status: 'online',
+    cors: 'enabled'
   });
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    cors: 'enabled'
+  });
 });
 
 // Middleware de errores
