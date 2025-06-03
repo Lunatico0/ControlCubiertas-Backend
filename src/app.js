@@ -12,19 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middlewares
-// app.use(cors());
-app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:8080',
-    'https://controlcubiertas-backend.vercel.app'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
-
+app.use(cors());
 app.options('*', cors());
 
 app.use(express.json());
