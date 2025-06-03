@@ -2,26 +2,26 @@
   "version": 2,
   "builds": [
     {
-      "src": "src/app.js",
+      "src": "src/app-alternative.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api-docs/(.*)",
-      "dest": "/src/app.js"
+      "dest": "/src/app-alternative.js"
     },
     {
       "src": "/api/(.*)",
-      "dest": "/src/app.js"
+      "dest": "/src/app-alternative.js"
     },
     {
       "src": "/(.*)",
-      "dest": "/src/app.js"
+      "dest": "/src/app-alternative.js"
     }
   ],
   "functions": {
-    "src/app.js": {
+    "src/app-alternative.js": {
       "maxDuration": 30
     }
   }
