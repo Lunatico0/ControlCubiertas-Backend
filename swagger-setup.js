@@ -208,6 +208,34 @@ const swaggerOptions = {
               example: '0001-00000001'
             }
           }
+        },
+        Order: {
+          type: 'object',
+          required: ['formattedOrder', 'status'],
+          properties: {
+            _id: {
+              type: 'string',
+              description: 'ID único de la orden'
+            },
+            formattedOrder: {
+              type: 'string',
+              description: 'Número de orden formateado (ej. ORD-0001)'
+            },
+            status: {
+              type: 'string',
+              description: 'Estado de la orden'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Fecha de creación'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Última actualización'
+            }
+          }
         }
       }
     }
