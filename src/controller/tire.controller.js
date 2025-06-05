@@ -38,6 +38,10 @@ class TireController {
       const { id } = req.params;
       const { status, orderNumber } = req.body;
 
+      console.log('id', id)
+      console.log('status', status)
+      console.log('orderNumber', orderNumber)
+
       const result = await TireService.updateTireStatus(id, status, orderNumber);
       res.status(200).json({
         message: `Estado actualizado de "${result.previousStatus}" a "${status}".`,

@@ -150,3 +150,7 @@ export const recalculateTire = (tire, history) => {
 
   return tire;
 };
+
+export const isValidOrderNumberFormat = (orderNumber) => {
+  return /^\d{4}-\d{6}$/.test(orderNumber);
+};

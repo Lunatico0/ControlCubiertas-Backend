@@ -1,35 +1,53 @@
-
-|   .env
-|   .gitignore
-|   package-lock.json
-|   package.json
-|   README.md
-|   tree.txt
-|   vercel.json
-|
-\---src
-    |   app.js
-    |   db.js
-    |
+�   .env
+�   .gitignore
+�   package-lock.json
+�   package.json
+�   README.md
+�   swagger-setup.js
+�   tree.txt
+�   vercel.json
+�
++---api
+�       index.js
+�
++---src
+    �   app.js
+    �   app.logged.js
+    �   db.js
+    �
+    +---config
+    �       logger.js
+    �
     +---controller
-    |       tire.controller.js
-    |       vehicle.controller.js
-    |
+    �       tire.controller.js
+    �       vehicle.controller.js
+    �
     +---middleware
-    |       tireExists.js
-    |       vehicleExists.js
-    |
+    �       logging.middleware.js
+    �       tireExists.js
+    �       vehicleExists.js
+    �
     +---models
-    |       receiptCounter.model.js
-    |       tire.model.js
-    |       vehicle.model.js
-    |
+    �       history.model.js
+    �       receiptCounter.model.js
+    �       tire.model.js
+    �       vehicle.model.js
+    �
     +---routes
-    |       tire.routes.js
-    |       vehicle.routes.js
-    |
+    �       tire.routes.js
+    �       vehicle.routes.js
+    �
     +---services
-    |       tire.service.js
-    |
-    \---utils
+    �       tire.service.js
+    �       tire.service.logged.js
+    �
+    +---tests
+    �   +---integration
+    �   �       tire.test.js
+    �   �
+    �   +---utils
+    �           recalculateTire.test.js
+    �
+    +---utils
+            error-handler.js
             utils.js

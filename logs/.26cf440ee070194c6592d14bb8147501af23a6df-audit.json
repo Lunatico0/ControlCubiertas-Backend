@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "D:\\Desktop\\Archivos\\FullStack\\Coding\\ControlCubiertas\\backend\\logs\\.26cf440ee070194c6592d14bb8147501af23a6df-audit.json",
+    "files": [
+        {
+            "date": 1748961328465,
+            "name": "D:\\Desktop\\Archivos\\FullStack\\Coding\\ControlCubiertas\\backend\\logs\\error-2025-06-03.log",
+            "hash": "adf2af6af5e87095038dbd96da6b4e9133ac0640e65fb3f73156f8a513f5185b"
+        }
+    ],
+    "hashType": "sha256"
+}

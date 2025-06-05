@@ -5,6 +5,7 @@ import { config } from 'dotenv';
 import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
+import orderRoutes from './routes/order.routes.js';
 
 config();
 
@@ -31,6 +32,7 @@ app.get('/api-docs.json', (req, res) => {
 // Rutas principales
 app.use('/api/tires', tireRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Rutas básicas
 app.get('/', (req, res) => {

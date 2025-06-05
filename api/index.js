@@ -24,63 +24,62 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api-docs', (req, res) => {
   try {
     const html = `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>API Gestión de Cubiertas - Documentación</title>
-  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@4.15.5/swagger-ui.css" />
-  <style>
-    .swagger-ui .topbar { display: none !important; }
-    body { margin: 0; background: #fafafa; }
-  </style>
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script>
-    function loadScript(src) {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.crossOrigin = 'anonymous';
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    }
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>API Gestión de Cubiertas - Documentación</title>
+      <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@4.15.5/swagger-ui.css" />
+      <style>
+        .swagger-ui .topbar { display: none !important; }
+        body { margin: 0; background: #fafafa; }
+      </style>
+    </head>
+    <body>
+      <div id="swagger-ui"></div>
+      <script>
+        function loadScript(src) {
+          return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.crossOrigin = 'anonymous';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
 
-    async function initSwagger() {
-      try {
-        await loadScript('https://cdn.jsdelivr.net/npm/swagger-ui-dist@4.15.5/swagger-ui-bundle.js');
-        await loadScript('https://cdn.jsdelivr.net/npm/swagger-ui-dist@4.15.5/swagger-ui-standalone-preset.js');
+        async function initSwagger() {
+          try {
+            await loadScript('https://cdn.jsdelivr.net/npm/swagger-ui-dist@4.15.5/swagger-ui-bundle.js');
+            await loadScript('https://cdn.jsdelivr.net/npm/swagger-ui-dist@4.15.5/swagger-ui-standalone-preset.js');
 
-        SwaggerUIBundle({
-          spec: ${JSON.stringify(specs, null, 2)},
-          dom_id: '#swagger-ui',
-          deepLinking: true,
-          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
-          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
-          layout: "StandaloneLayout",
-          persistAuthorization: true,
-          displayRequestDuration: true,
-          docExpansion: 'none',
-          filter: true
-        });
-      } catch (error) {
-        document.getElementById('swagger-ui').innerHTML = '<div style="text-align:center;padding:50px;">Error cargando documentación</div>';
-      }
-    }
+            SwaggerUIBundle({
+              spec: ${JSON.stringify(specs, null, 2)},
+              dom_id: '#swagger-ui',
+              deepLinking: true,
+              presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+              plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+              layout: "StandaloneLayout",
+              persistAuthorization: true,
+              displayRequestDuration: true,
+              docExpansion: 'none',
+              filter: true
+            });
+          } catch (error) {
+            document.getElementById('swagger-ui').innerHTML = '<div style="text-align:center;padding:50px;">Error cargando documentación</div>';
+          }
+        }
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initSwagger);
-    } else {
-      initSwagger();
-    }
-  </script>
-</body>
-</html>`;
-
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initSwagger);
+        } else {
+          initSwagger();
+        }
+      </script>
+    </body>
+    </html>`;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
   } catch (error) {
