@@ -5,6 +5,7 @@ import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
 import { setupGlobalErrorHandlers } from './utils/error-handler.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
+import orderRoutes from './routes/order.routes.js';
 
 const app = express();
 
@@ -31,6 +32,7 @@ logger.info('Application starting', {
 // Rutas
 app.use('/api/tires', tireRoutes);
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Ruta de health check
 app.get('/health', (req, res) => {
