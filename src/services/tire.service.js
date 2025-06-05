@@ -301,11 +301,6 @@ class TireService {
 
       // Calcular los kilómetros recorridos
       kmFinal = kmBajaFinal - kmAltaToUse;
-
-      console.log(`Calculando km para corrección:`);
-      console.log(`  kmBaja: ${kmBajaFinal}`);
-      console.log(`  kmAlta: ${kmAltaToUse}`);
-      console.log(`  km calculado: ${kmFinal}`);
     }
 
     const newEntry = {
@@ -343,8 +338,6 @@ class TireService {
     const correctionOrder = formData.orderNumber;
 
     if (!original) throw new Error("Entrada de historial no encontrada");
-
-    console.log(`🔄 Deshaciendo entrada tipo: ${original.type}`);
 
     // Definir razones
     const reasonOriginal = `Deshecho en la orden N°${correctionOrder}`;
@@ -409,8 +402,6 @@ class TireService {
   }
 
   async handleUndoAssignment(tire, original, history, correctionOrder, reason) {
-    console.log('📤 Deshaciendo asignación - desasignando cubierta');
-
     // Crear entrada de desasignación sin kmAlta ni kmBaja
     const newEntry = {
       tire: tire._id,
@@ -436,8 +427,6 @@ class TireService {
   }
 
   async handleUndoUnassignment(tire, original, history, correctionOrder, reason) {
-    console.log('📥 Deshaciendo desasignación - reasignando cubierta');
-
     // Buscar la última asignación antes de la desasignación original
     const lastAssignment = [...history]
       .reverse()
@@ -451,8 +440,6 @@ class TireService {
       throw new Error('No se encontró asignación anterior para revertir');
     }
 
-    console.log(`🔍 Última asignación encontrada: ${lastAssignment._id}, kmAlta=${lastAssignment.kmAlta}`);
-
     // Obtener el kmAlta correcto de la última asignación
     const correctKmAlta = lastAssignment.kmAlta || 0;
 
@@ -464,7 +451,6 @@ class TireService {
       const originalDesassignment = history.find(h => h._id.toString() === original.corrects.toString());
       if (originalDesassignment) {
         revertedKmBaja = originalDesassignment.kmBaja || 0;
-        console.log(`🔄 Revirtiendo corrección: kmBaja de ${original.kmBaja} a ${revertedKmBaja}`);
       }
     }
 
@@ -483,8 +469,6 @@ class TireService {
       corrects: original._id
     };
 
-    console.log(`✅ Creando nueva asignación con kmAlta=${correctKmAlta} y vehículo=${lastAssignment.vehicle}`);
-
     await historyModel.create(newEntry);
 
     return {
@@ -494,8 +478,6 @@ class TireService {
   }
 
   async handleUndoStatusChange(tire, original, history, correctionOrder, reason) {
-    console.log('🔄 Deshaciendo cambio de estado');
-
     // Buscar el estado anterior
     const previousStatusEntry = [...history]
       .reverse()
@@ -526,8 +508,6 @@ class TireService {
         revertedStatus = evenEarlierStatus ? evenEarlierStatus.status : 'Nueva';
       }
     }
-
-    console.log(`🔄 Revirtiendo estado de "${original.status}" a "${revertedStatus}"`);
 
     // Crear entrada de cambio de estado
     const newEntry = {
