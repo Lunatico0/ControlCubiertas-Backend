@@ -7,7 +7,7 @@ import { specs } from '../swagger-setup.js';
 // Importar rutas
 import tireRoutes from '../src/routes/tire.routes.js';
 import vehicleRoutes from '../src/routes/vehicle.routes.js';
-import orderRoutes from './routes/order.routes.js';
+import orderRoutes from '../src/routes/order.routes.js';
 
 config();
 
