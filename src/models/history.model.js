@@ -34,6 +34,7 @@ const historySchema = new mongoose.Schema({
   reason: String,
   editedBy: String,
   flag: { type: Boolean, default: false },
+  receiptNumber: { type: String, default: "0000-00000000" },
 
   // 🔁 Campo nuevo para rastrear entradas corregidas
   corrects: {

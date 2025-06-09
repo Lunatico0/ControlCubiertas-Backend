@@ -36,9 +36,9 @@ class TireController {
   async updateStatus(req, res) {
     try {
       const { id } = req.params;
-      const { status, orderNumber } = req.body;
+      const { status, orderNumber, receiptNumber } = req.body;
 
-      const result = await TireService.updateTireStatus(id, status, orderNumber);
+      const result = await TireService.updateTireStatus(id, status, orderNumber, receiptNumber);
       res.status(200).json({
         message: `Estado actualizado de "${result.previousStatus}" a "${status}".`,
         tire: result.tire
@@ -52,13 +52,13 @@ class TireController {
   async assignVehicle(req, res) {
     try {
       const { id } = req.params;
-      const { vehicle, kmAlta, orderNumber } = req.body;
+      const { vehicle, kmAlta, orderNumber, receiptNumber } = req.body;
 
       if (typeof kmAlta !== 'number') {
         return res.status(400).json({ message: 'Kilómetros de alta (kmAlta) requeridos.' });
       }
 
-      const tire = await TireService.assignVehicle(id, vehicle, kmAlta, orderNumber);
+      const tire = await TireService.assignVehicle(id, vehicle, kmAlta, orderNumber, receiptNumber);
       res.status(200).json({ message: 'Cubierta asignada correctamente', tire });
     } catch (error) {
       console.error('Error en assignVehicle:', error);
@@ -69,13 +69,13 @@ class TireController {
   async unassignVehicle(req, res) {
     try {
       const { id } = req.params;
-      const { kmBaja, orderNumber } = req.body;
+      const { kmBaja, orderNumber, receiptNumber } = req.body;
 
       if (typeof kmBaja !== 'number') {
         return res.status(400).json({ message: 'Kilómetros de baja (kmBaja) requeridos.' });
       }
 
-      const result = await TireService.unassignVehicle(id, kmBaja, orderNumber);
+      const result = await TireService.unassignVehicle(id, kmBaja, orderNumber, receiptNumber);
       res.status(200).json({
         message: 'Cubierta desasignada con éxito.',
         ...result

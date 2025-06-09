@@ -15,100 +15,61 @@ export const addHistoryEntry = async (tireId, data) => {
   });
 };
 
-export const recalculateTire = (tire, history) => {
+export const recalculateTireState = (history) => {
   let currentVehicle = null;
   let currentStatus = null;
   let totalKilometers = 0;
   let lastAssignmentKm = 0;
 
-  const sortedHistory = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sorted = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const correctedIds = new Set();
-  const correctionsMap = new Map();
+  const correctedIds = new Set(sorted.filter(e => e.corrects).map(e => e.corrects.toString()));
+  const validEntries = sorted.filter(entry => !correctedIds.has(entry._id.toString()));
 
-  // Registrar qué entradas están corregidas
-  for (const entry of sortedHistory) {
-    if (entry.corrects) {
-      const correctionId = entry._id.toString();
-      const originalId = entry.corrects.toString();
-      correctionsMap.set(correctionId, originalId);
-      correctedIds.add(originalId);
-    }
-  }
-
-  for (const entry of sortedHistory) {
-    const entryId = entry._id.toString();
-
-    if (correctedIds.has(entryId)) {
-      continue;
-    }
-
+  for (const entry of validEntries) {
     switch (entry.type) {
-      case "alta":
-        currentStatus = entry.status;
+      case 'alta':
+      case 'correccion-alta':
+      case 'estado':
+      case 'correccion-estado':
+        if (entry.status) currentStatus = entry.status;
         break;
 
-      case "estado":
-        currentStatus = entry.status;
-        break;
-
-      case "asignacion":
-      case "correccion-asignacion":
+      case 'asignacion':
+      case 'correccion-asignacion':
         currentVehicle = entry.vehicle;
-        lastAssignmentKm = entry.kmAlta ?? 0;
+        if (typeof entry.kmAlta === 'number') {
+          lastAssignmentKm = entry.kmAlta;
+        }
         break;
 
-      case "desasignacion": {
+      case 'desasignacion':
+      case 'correccion-desasignacion': {
         currentVehicle = null;
-        const kmAlta = entry.kmAlta ?? lastAssignmentKm;
+        const kmAlta = (typeof entry.kmAlta === 'number') ? entry.kmAlta : lastAssignmentKm;
         const kmBaja = entry.kmBaja ?? 0;
-        const km = kmBaja - kmAlta;
-
-        if (!isNaN(km) && km > 0) {
-          totalKilometers += km;
-        }
+        const diff = kmBaja - kmAlta;
+        if (!isNaN(diff) && diff > 0) totalKilometers += diff;
         break;
       }
-
-      case "correccion-desasignacion": {
-        currentVehicle = null;
-
-        // Para correcciones de desasignación, tratamos la entrada como una desasignación nueva
-        // que reemplaza completamente a la original
-        const kmAlta = entry.kmAlta ?? lastAssignmentKm;
-        const kmBaja = entry.kmBaja ?? 0;
-        const kmRecorridos = kmBaja - kmAlta;
-
-        // Simplemente añadir los kilómetros recorridos de la corrección
-        // (la entrada original ya fue omitida, así que no necesitamos calcular diferencias)
-        if (!isNaN(kmRecorridos) && kmRecorridos > 0) {
-          totalKilometers += kmRecorridos;
-        }
-        break;
-      }
-
-      case "correccion-alta":
-        if (entry.status) {
-          currentStatus = entry.status;
-        }
-        break;
-
-      case "correccion-estado":
-        if (entry.status) {
-          currentStatus = entry.status;
-        }
-        break;
 
       default:
         break;
     }
   }
 
-  tire.status = currentStatus;
-  tire.vehicle = currentVehicle;
-  tire.kilometers = totalKilometers;
+  return {
+    currentVehicle,
+    currentStatus,
+    totalKilometers,
+    lastAssignmentKm
+  };
+};
 
-  return tire;
+export const updateTireFromState = (tireDoc, state) => {
+  tireDoc.vehicle = state.currentVehicle;
+  tireDoc.status = state.currentStatus;
+  tireDoc.kilometers = state.totalKilometers;
 };
 
 export const isValidOrderNumberFormat = (orderNumber) => {
