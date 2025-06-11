@@ -38,6 +38,8 @@ class TireController {
       const { id } = req.params;
       const { status, orderNumber, receiptNumber } = req.body;
 
+      console.log('🧾 Receipt recibido:', receiptNumber)
+
       const result = await TireService.updateTireStatus(id, status, orderNumber, receiptNumber);
       res.status(200).json({
         message: `Estado actualizado de "${result.previousStatus}" a "${status}".`,
@@ -53,6 +55,8 @@ class TireController {
     try {
       const { id } = req.params;
       const { vehicle, kmAlta, orderNumber, receiptNumber } = req.body;
+
+      console.log('🧾 Receipt recibido:', receiptNumber)
 
       if (typeof kmAlta !== 'number') {
         return res.status(400).json({ message: 'Kilómetros de alta (kmAlta) requeridos.' });
@@ -70,6 +74,8 @@ class TireController {
     try {
       const { id } = req.params;
       const { kmBaja, orderNumber, receiptNumber } = req.body;
+
+      console.log('🧾 Receipt recibido:', receiptNumber)
 
       if (typeof kmBaja !== 'number') {
         return res.status(400).json({ message: 'Kilómetros de baja (kmBaja) requeridos.' });
