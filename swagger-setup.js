@@ -20,13 +20,13 @@ const swaggerOptions = {
     },
     servers: [
       {
+        url: 'https://controlcubiertas-backend.vercel.app',
+        description: 'Servidor de producción'
+      },
+      {
         url: `http://localhost:${PORT}`,
         description: 'Servidor de desarrollo'
       },
-      {
-        url: 'https://controlcubiertas-backend.vercel.app',
-        description: 'Servidor de producción'
-      }
     ],
     components: {
       schemas: {
