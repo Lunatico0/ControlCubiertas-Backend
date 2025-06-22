@@ -117,17 +117,18 @@ router.post('/', VehicleController.create);
 
 /**
  * @swagger
- * /api/vehicles/details/{id}:
+ * /api/vehicles/{id}/details:
  *   put:
  *     summary: Actualizar detalles de un vehículo
- *     tags: [Vehículos]
+ *     tags:
+ *       - Vehículos
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID del vehículo
+ *         description: ID del vehículo a actualizar
  *     requestBody:
  *       required: true
  *       content:
@@ -140,22 +141,30 @@ router.post('/', VehicleController.create);
  *                 description: Marca del vehículo
  *               mobile:
  *                 type: string
- *                 description: Número de móvil único (ej: "Movil 1")
+ *                 description: Número de móvil (ej. "Movil 10")
  *               licensePlate:
  *                 type: string
  *                 description: Patente del vehículo
  *               type:
  *                 type: string
- *                 description: Tipo de vehículo (ej: "Camión", "Auto", etc.)
+ *                 description: Tipo de vehículo
+ *               tires:
+ *                 type: array
+ *                 description: IDs de las cubiertas asignadas
+ *                 items:
+ *                   type: string
+ *             required:
+ *               - mobile
+ *               - licensePlate
  *     responses:
- *       200:
- *         description: Detalles del vehículo actualizados exitosamente
+ *       '200':
+ *         description: Vehículo actualizado correctamente
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Vehicle'
- *       400:
- *         description: Datos inválidos o móvil/patente ya existentes
+ *       '400':
+ *         description: Error de validación o cubiertas en conflicto
  *         content:
  *           application/json:
  *             schema:
@@ -163,7 +172,11 @@ router.post('/', VehicleController.create);
  *               properties:
  *                 message:
  *                   type: string
- *       404:
+ *                 conflictingTires:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Tire'
+ *       '404':
  *         description: Vehículo no encontrado
  *         content:
  *           application/json:
