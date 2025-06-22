@@ -1,6 +1,7 @@
 import express from 'express';
 import VehicleController from '../controller/vehicle.controller.js';
 import { validateVehicleExists } from '../middleware/vehicleExists.js';
+import vehicleController from '../controller/vehicle.controller.js';
 
 const router = express.Router();
 
@@ -113,6 +114,66 @@ router.get('/:id', VehicleController.getById);
  *                     $ref: '#/components/schemas/Tire'
  */
 router.post('/', VehicleController.create);
+
+/**
+ * @swagger
+ * /api/vehicles/details/{id}:
+ *   put:
+ *     summary: Actualizar detalles de un vehículo
+ *     tags: [Vehículos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del vehículo
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               brand:
+ *                 type: string
+ *                 description: Marca del vehículo
+ *               mobile:
+ *                 type: string
+ *                 description: Número de móvil único (ej: "Movil 1")
+ *               licensePlate:
+ *                 type: string
+ *                 description: Patente del vehículo
+ *               type:
+ *                 type: string
+ *                 description: Tipo de vehículo (ej: "Camión", "Auto", etc.)
+ *     responses:
+ *       200:
+ *         description: Detalles del vehículo actualizados exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Vehicle'
+ *       400:
+ *         description: Datos inválidos o móvil/patente ya existentes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Vehículo no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ */
+router.put('/details/:id', validateVehicleExists, vehicleController.updateDetails);
 
 /**
  * @swagger

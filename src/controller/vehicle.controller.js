@@ -154,6 +154,40 @@ class VehicleController {
       res.status(500).json({ message: "Error al actualizar el vehículo", error: error.message });
     }
   }
+
+  async updateDetails(req, res) {
+    try {
+      const { id } = req.params;
+      const { mobile, licensePlate, brand, type } = req.body;
+
+      const vehicle = await vehicleModel.findById(id);
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehículo no encontrado" });
+      }
+
+      // Validación opcional: evitar duplicados en mobile o patente
+      const duplicateMobile = await vehicleModel.findOne({ mobile, _id: { $ne: id } });
+      if (duplicateMobile) {
+        return res.status(400).json({ message: "Ya existe un vehículo con ese número de móvil" });
+      }
+
+      const duplicatePlate = await vehicleModel.findOne({ licensePlate, _id: { $ne: id } });
+      if (duplicatePlate) {
+        return res.status(400).json({ message: "Ya existe un vehículo con esa patente" });
+      }
+
+      vehicle.mobile = mobile;
+      vehicle.licensePlate = licensePlate;
+      vehicle.brand = brand;
+      vehicle.type = type;
+
+      const updated = await vehicle.save();
+      res.json(updated);
+    } catch (error) {
+      console.error("Error al actualizar detalles del vehículo:", error.message);
+      res.status(500).json({ message: "Error al actualizar el vehículo", error: error.message });
+    }
+  }
 }
 
 export default new VehicleController();
