@@ -176,25 +176,36 @@ class TireService {
   async correctData(tireId, data) {
     const tire = await this.getDocById(tireId);
     const allowedFields = ['serialNumber', 'code', 'brand', 'pattern'];
-    const { reason, date, orderNumber } = data;
+    const { reason, date, orderNumber } = data.form;
 
     const previousData = {};
     const editedFields = [];
     const fieldChanges = {};
 
+    const normalize = (value) => {
+      if (typeof value === 'string') return value.trim();
+      if (typeof value === 'number') return String(value);
+      return value ?? '';
+    };
+
     for (const field of allowedFields) {
-      if (data[field] && data[field] !== tire[field]) {
+      const current = normalize(tire[field]);
+      const incoming = normalize(data.form[field]);
+
+      if (incoming && incoming !== current) {
         previousData[field] = tire[field];
         fieldChanges[field] = {
           before: tire[field],
-          after: data[field]
+          after: data.form[field]
         };
-        tire[field] = data[field];
+        tire[field] = data.form[field];
         editedFields.push(field);
       }
     }
 
-    if (editedFields.length === 0) throw new Error("No se detectaron cambios válidos para corregir.");
+    if (editedFields.length === 0) {
+      throw new Error("No se detectaron cambios válidos para corregir.");
+    }
 
     const parsedDate = date && !isNaN(new Date(date)) ? new Date(date) : new Date();
 
@@ -208,7 +219,7 @@ class TireService {
       reason,
       orderNumber: orderNumber || null,
       flag: true,
-      receiptNumber: data.receiptNumber
+      receiptNumber: data.form.receiptNumber
     });
 
     await tire.save();
