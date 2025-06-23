@@ -74,7 +74,7 @@ class TireService {
       km: kilometers,
       status,
       date: entryDate,
-      type: 'alta',
+      type: 'Alta',
       orderNumber: orderNumber || null,
       receiptNumber
     });
@@ -162,7 +162,7 @@ class TireService {
     tire.status = status;
 
     await addHistoryEntry(tire._id, {
-      type: 'estado',
+      type: 'Estado',
       vehicle: tire.vehicle,
       status,
       orderNumber: orderNumber || null,
@@ -210,7 +210,7 @@ class TireService {
     const parsedDate = date && !isNaN(new Date(date)) ? new Date(date) : new Date();
 
     await addHistoryEntry(tire._id, {
-      type: 'Corrección-alta',
+      type: 'Corrección-Alta',
       date: parsedDate,
       km: tire.kilometers || 0,
       vehicle: tire.vehicle || null,
@@ -540,7 +540,7 @@ class TireService {
     // Crear entrada de cambio de estado
     const newEntry = {
       tire: tire._id,
-      type: 'estado',
+      type: 'Estado',
       date: new Date(),
       orderNumber: correctionOrder,
       reason: reason,
