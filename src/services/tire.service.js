@@ -396,14 +396,14 @@ class TireService {
         revertedData = await this.handleUndoUnassignment(tire, original, history, correctionOrder, reasonFinal, receiptNumber);
         break;
 
-      case 'estado':
-      case 'Corrección-estado':
+      case 'Estado':
+      case 'Corrección-Estado':
         // Deshacer cambio de estado = volver al estado anterior
         revertedData = await this.handleUndoStatusChange(tire, original, history, correctionOrder, reasonFinal, receiptNumber);
         break;
 
-      case 'alta':
-      case 'Corrección-alta':
+      case 'Alta':
+      case 'Corrección-Alta':
         // Deshacer alta = marcar como eliminada (no implementado por seguridad)
         throw new Error('No se puede deshacer el alta de una cubierta');
 
@@ -510,7 +510,7 @@ class TireService {
     const previousStatusEntry = [...history]
       .reverse()
       .find(entry =>
-        (entry.type === 'estado' || entry.type === 'alta') &&
+        (entry.type === 'Estado' || entry.type === 'Alta') &&
         new Date(entry.date) < new Date(original.date) &&
         !entry.flag &&
         entry.status
@@ -520,7 +520,7 @@ class TireService {
 
     if (previousStatusEntry) {
       revertedStatus = previousStatusEntry.status;
-    } else if (original.type === 'Corrección-estado' && original.corrects) {
+    } else if (original.type === 'Corrección-Estado' && original.corrects) {
       // Si es una corrección, buscar la entrada original
       const originalStatusChange = history.find(h => h._id.toString() === original.corrects.toString());
       if (originalStatusChange) {
@@ -528,7 +528,7 @@ class TireService {
         const evenEarlierStatus = [...history]
           .reverse()
           .find(entry =>
-            (entry.type === 'estado' || entry.type === 'alta') &&
+            (entry.type === 'Estado' || entry.type === 'Alta') &&
             new Date(entry.date) < new Date(originalStatusChange.date) &&
             !entry.flag &&
             entry.status
