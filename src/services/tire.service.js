@@ -97,7 +97,7 @@ class TireService {
     vehicle.tires.push(tire._id);
 
     await addHistoryEntry(tire._id, {
-      type: 'asignacion',
+      type: 'Asignación',
       vehicle: vehicleId,
       status: tire.status,
       kmAlta,
@@ -129,7 +129,7 @@ class TireService {
     tire.kilometers += kmRecorridos;
 
     await addHistoryEntry(tire._id, {
-      type: 'desasignacion',
+      type: 'Desasignación',
       status: tire.status,
       kmBaja,
       km: kmRecorridos,
@@ -210,7 +210,7 @@ class TireService {
     const parsedDate = date && !isNaN(new Date(date)) ? new Date(date) : new Date();
 
     await addHistoryEntry(tire._id, {
-      type: 'correccion-alta',
+      type: 'Corrección-alta',
       date: parsedDate,
       km: tire.kilometers || 0,
       vehicle: tire.vehicle || null,
@@ -303,8 +303,8 @@ class TireService {
     // ✅ AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL
     let kmFinal = undefined;
 
-    // Para correcciones de desasignación, calcular correctamente los km
-    if (original.type === 'desasignacion' || original.type === 'correccion-desasignacion') {
+    // Para Correcciónes de Desasignación, calcular correctamente los km
+    if (original.type === 'Desasignación' || original.type === 'Corrección-Desasignación') {
       // Obtener kmAlta y kmBaja finales
       const kmAltaFinal = updates.form.kmAlta ?? original.kmAlta ?? 0;
       const kmBajaFinal = updates.form.kmBaja ?? original.kmBaja ?? 0;
@@ -316,7 +316,7 @@ class TireService {
         const lastAssignment = [...history]
           .reverse()
           .find(h =>
-            h.type === 'asignacion' &&
+            h.type === 'Asignación' &&
             new Date(h.date) < new Date(original.date) &&
             h.kmAlta != null
           );
@@ -384,26 +384,26 @@ class TireService {
 
     // 🎯 LÓGICA ESPECÍFICA SEGÚN EL TIPO DE ENTRADA
     switch (original.type) {
-      case 'asignacion':
-      case 'correccion-asignacion':
+      case 'Asignación':
+      case 'Corrección-Asignación':
         // Deshacer asignación = desasignar cubierta
         revertedData = await this.handleUndoAssignment(tire, original, history, correctionOrder, reasonFinal, receiptNumber);
         break;
 
-      case 'desasignacion':
-      case 'correccion-desasignacion':
-        // Deshacer desasignación = reasignar a vehículo anterior
+      case 'Desasignación':
+      case 'Corrección-Desasignación':
+        // Deshacer Desasignación = reasignar a vehículo anterior
         revertedData = await this.handleUndoUnassignment(tire, original, history, correctionOrder, reasonFinal, receiptNumber);
         break;
 
       case 'estado':
-      case 'correccion-estado':
+      case 'Corrección-estado':
         // Deshacer cambio de estado = volver al estado anterior
         revertedData = await this.handleUndoStatusChange(tire, original, history, correctionOrder, reasonFinal, receiptNumber);
         break;
 
       case 'alta':
-      case 'correccion-alta':
+      case 'Corrección-alta':
         // Deshacer alta = marcar como eliminada (no implementado por seguridad)
         throw new Error('No se puede deshacer el alta de una cubierta');
 
@@ -428,10 +428,10 @@ class TireService {
   }
 
   async handleUndoAssignment(tire, original, history, correctionOrder, reason, receiptNumber) {
-    // Crear entrada de desasignación sin kmAlta ni kmBaja
+    // Crear entrada de Desasignación sin kmAlta ni kmBaja
     const newEntry = {
       tire: tire._id,
-      type: 'desasignacion',
+      type: 'Desasignación',
       date: new Date(),
       orderNumber: correctionOrder,
       reason: reason,
@@ -454,11 +454,11 @@ class TireService {
   }
 
   async handleUndoUnassignment(tire, original, history, correctionOrder, reason, receiptNumber) {
-    // Buscar la última asignación antes de la desasignación original
+    // Buscar la última asignación antes de la Desasignación original
     const lastAssignment = [...history]
       .reverse()
       .find(entry =>
-        (entry.type === 'asignacion' || entry.type === 'correccion-asignacion') &&
+        (entry.type === 'Asignación' || entry.type === 'Corrección-Asignación') &&
         new Date(entry.date) < new Date(original.date) &&
         !entry.flag
       );
@@ -470,10 +470,10 @@ class TireService {
     // Obtener el kmAlta correcto de la última asignación
     const correctKmAlta = lastAssignment.kmAlta || 0;
 
-    // Si es una corrección de desasignación, necesitamos revertir los km
+    // Si es una corrección de Desasignación, necesitamos revertir los km
     let revertedKmBaja = original.kmBaja || 0;
 
-    if (original.type === 'correccion-desasignacion' && original.corrects) {
+    if (original.type === 'Corrección-Desasignación' && original.corrects) {
       // Buscar la entrada original que fue corregida
       const originalDesassignment = history.find(h => h._id.toString() === original.corrects.toString());
       if (originalDesassignment) {
@@ -484,12 +484,12 @@ class TireService {
     // Crear entrada de reasignación con el kmAlta correcto
     const newEntry = {
       tire: tire._id,
-      type: 'asignacion',
+      type: 'Asignación',
       date: new Date(),
       orderNumber: correctionOrder,
       reason: reason,
       flag: true,
-      editedFields: ['Deshacer desasignación'],
+      editedFields: ['Deshacer Desasignación'],
       vehicle: lastAssignment.vehicle,
       kmAlta: correctKmAlta, // Usar el kmAlta de la asignación original
       status: tire.status,
@@ -520,7 +520,7 @@ class TireService {
 
     if (previousStatusEntry) {
       revertedStatus = previousStatusEntry.status;
-    } else if (original.type === 'correccion-estado' && original.corrects) {
+    } else if (original.type === 'Corrección-estado' && original.corrects) {
       // Si es una corrección, buscar la entrada original
       const originalStatusChange = history.find(h => h._id.toString() === original.corrects.toString());
       if (originalStatusChange) {

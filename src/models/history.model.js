@@ -1,15 +1,15 @@
 import mongoose from "mongoose";
 
 const historyTypes = [
-  'alta',
-  'asignacion',
-  'desasignacion',
-  'estado',
-  'correccion-alta',
-  'correccion-asignacion',
-  'correccion-desasignacion',
-  'correccion-estado',
-  'correccion-otro',
+  'Alta',
+  'Asignación',
+  'Desasignación',
+  'Estado',
+  'Corrección-Alta',
+  'Corrección-Asignación',
+  'Corrección-Desasignación',
+  'Corrección-Estado',
+  'Corrección-Otro',
 ];
 
 const historySchema = new mongoose.Schema({
