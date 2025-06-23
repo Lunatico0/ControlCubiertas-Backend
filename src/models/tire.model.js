@@ -9,6 +9,7 @@ const tireSchema = new mongoose.Schema({
   code: { type: Number, required: true, unique: true },
   brand: { type: String, required: true },
   pattern: { type: String, required: true },
+  size: { type: String, required: true },
   serialNumber: { type: String, required: true },
   kilometers: { type: Number, default: 0 },
   vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' }

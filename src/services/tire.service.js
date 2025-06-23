@@ -44,6 +44,7 @@ class TireService {
       brand,
       pattern,
       serialNumber,
+      size,
       kilometers = 0,
       vehicle,
       createdAt,
@@ -60,6 +61,7 @@ class TireService {
       code,
       brand,
       pattern,
+      size,
       serialNumber,
       kilometers,
       vehicle: vehicle || null,
@@ -186,7 +188,7 @@ class TireService {
 
   async correctData(tireId, data) {
     const tire = await this.getDocById(tireId);
-    const allowedFields = ['serialNumber', 'code', 'brand', 'pattern'];
+    const allowedFields = ['serialNumber', 'code', 'size', 'brand', 'pattern'];
     const { reason, date, orderNumber } = data.form;
 
     const previousData = {};

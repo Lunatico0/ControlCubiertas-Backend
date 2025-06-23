@@ -24,11 +24,7 @@ const historySchema = new mongoose.Schema({
   km: Number,
   status: { type: String },
   vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' },
-  type: {
-    type: String,
-    enum: historyTypes,
-    required: true
-  },
+  type: { type: String, enum: historyTypes, required: true },
   orderNumber: { type: String },
   editedFields: [String],
   reason: String,
