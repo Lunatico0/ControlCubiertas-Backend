@@ -115,15 +115,26 @@ class TireService {
     const tire = await this.getDocById(tireId);
     const vehicle = await this.findVehicleById(tire.vehicle);
 
+    console.log('tire', tire)
+    console.log('vehicle', vehicle)
+
     const history = await historyModel
       .find({ tire: tireId })
       .sort({ date: 1 });
+
+    console.log('history', history)
 
     const currentState = recalculateTireState(history);
     const kmAlta = currentState.lastAssignmentKm;
     const kmRecorridos = kmBaja - kmAlta;
 
+    console.log('currentState', currentState)
+    console.log('kmAlta', kmAlta)
+    console.log('kmBaja', kmBaja)
+
     if (kmRecorridos < 0) throw new Error('Kilometraje de baja no puede ser menor que el de alta');
+
+    console.log('kmRecorridos', kmRecorridos)
 
     tire.vehicle = null;
     tire.kilometers += kmRecorridos;

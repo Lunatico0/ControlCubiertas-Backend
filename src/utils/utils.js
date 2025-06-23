@@ -1,10 +1,10 @@
 import historyModel from '../models/history.model.js';
 
 export const toCorrectionType = (type) => {
-  if (!type) return 'correccion-otro';
-  return type.startsWith('correccion-')
+  if (!type) return 'Corrección-Otro';
+  return type.startsWith('Corrección-')
     ? type
-    : `correccion-${type}`;
+    : `Corrección-${type}`;
 };
 
 export const addHistoryEntry = async (tireId, data) => {
@@ -28,23 +28,23 @@ export const recalculateTireState = (history) => {
 
   for (const entry of validEntries) {
     switch (entry.type) {
-      case 'alta':
-      case 'correccion-alta':
-      case 'estado':
-      case 'correccion-estado':
+      case 'Alta':
+      case 'Corrección-Alta':
+      case 'Estado':
+      case 'Corrección-Estado':
         if (entry.status) currentStatus = entry.status;
         break;
 
-      case 'asignacion':
-      case 'correccion-asignacion':
+      case 'Asignación':
+      case 'Corrección-Asignación':
         currentVehicle = entry.vehicle;
         if (typeof entry.kmAlta === 'number') {
           lastAssignmentKm = entry.kmAlta;
         }
         break;
 
-      case 'desasignacion':
-      case 'correccion-desasignacion': {
+      case 'Desasignación':
+      case 'Corrección-Desasignación': {
         currentVehicle = null;
         const kmAlta = (typeof entry.kmAlta === 'number') ? entry.kmAlta : lastAssignmentKm;
         const kmBaja = entry.kmBaja ?? 0;
