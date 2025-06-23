@@ -369,14 +369,15 @@ class TireService {
   };
 
   async undoHistoryEntry(tireId, historyId, formData) {
-    const { correctionOrder, receiptNumber } = formData;
+    const { orderNumber, receiptNumber } = formData;
+
     const tire = await this.getDocById(tireId);
     const history = await historyModel.find({ tire: tire._id }).sort({ date: 1 });
     const original = await historyModel.findById(historyId).populate('vehicle').populate('corrects');
     if (!original) throw new Error("Entrada de historial no encontrada");
 
     // Definir razones
-    const reasonOriginal = `Deshecho en la orden N°${correctionOrder}`;
+    const reasonOriginal = `Deshecho en la orden N°${orderNumber}`;
     const reasonUndo = `Deshacer entrada N°${original.orderNumber}`;
     const userExtra = formData.reason?.trim() || '';
     const reasonFinal = userExtra && userExtra !== reasonUndo
@@ -398,19 +399,19 @@ class TireService {
       case 'Asignación':
       case 'Corrección-Asignación':
         // Deshacer asignación = desasignar cubierta
-        revertedData = await this.handleUndoAssignment(tire, original, history, correctionOrder, reasonFinal, receiptNumber);
+        revertedData = await this.handleUndoAssignment(tire, original, history, orderNumber, reasonFinal, receiptNumber);
         break;
 
       case 'Desasignación':
       case 'Corrección-Desasignación':
         // Deshacer Desasignación = reasignar a vehículo anterior
-        revertedData = await this.handleUndoUnassignment(tire, original, history, correctionOrder, reasonFinal, receiptNumber);
+        revertedData = await this.handleUndoUnassignment(tire, original, history, orderNumber, reasonFinal, receiptNumber);
         break;
 
       case 'Estado':
       case 'Corrección-Estado':
         // Deshacer cambio de estado = volver al estado anterior
-        revertedData = await this.handleUndoStatusChange(tire, original, history, correctionOrder, reasonFinal, receiptNumber);
+        revertedData = await this.handleUndoStatusChange(tire, original, history, orderNumber, reasonFinal, receiptNumber);
         break;
 
       case 'Alta':
