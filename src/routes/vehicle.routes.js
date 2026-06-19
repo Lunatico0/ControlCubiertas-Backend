@@ -2,6 +2,8 @@ import express from 'express';
 import VehicleController from '../controller/vehicle.controller.js';
 import { validateVehicleExists } from '../middleware/vehicleExists.js';
 import vehicleController from '../controller/vehicle.controller.js';
+import { validate } from '../middleware/validate.js';
+import { createVehicleSchema } from '../validators/vehicle.validator.js';
 
 const router = express.Router();
 
@@ -113,7 +115,7 @@ router.get('/:id', VehicleController.getById);
  *                   items:
  *                     $ref: '#/components/schemas/Tire'
  */
-router.post('/', VehicleController.create);
+router.post('/', validate(createVehicleSchema), VehicleController.create);
 
 /**
  * @swagger

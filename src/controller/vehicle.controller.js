@@ -1,5 +1,7 @@
-// Modelos vía req.db (inyectado por attachDb). NOTA: el `tire.history.push` de create/update
-// es el Bug 5 (Tire no tiene campo history) — se mantiene tal cual; se corrige en fase 04.
+import { addHistoryEntry } from '../utils/utils.js';
+
+// Modelos vía req.db (inyectado por attachDb). El historial vive en la colección History
+// (no en el doc Tire): por eso usamos addHistoryEntry y NO tire.history.push (Bug 5 resuelto).
 class VehicleController {
   async getAll(req, res) {
     try {
@@ -49,9 +51,10 @@ class VehicleController {
           if (tire) {
             tire.vehicle = newVehicle._id;
 
-            tire.history.push({
+            await addHistoryEntry(req.db.History, tire._id, {
+              type: 'Asignación',
               vehicle: newVehicle._id,
-              km: tire.kilometers,
+              kmAlta: tire.kilometers,
               status: tire.status,
             });
 
@@ -112,9 +115,9 @@ class VehicleController {
       for (const tireId of tiresToRemove) {
         const tire = await req.db.Tire.findById(tireId);
         if (tire) {
-          const previousVehicle = tire.vehicle;
-          tire.history.push({
-            vehicle: previousVehicle || null,
+          await addHistoryEntry(req.db.History, tire._id, {
+            type: 'Desasignación',
+            vehicle: null,
             km: tire.kilometers,
             status: tire.status,
           });
@@ -134,9 +137,10 @@ class VehicleController {
       for (const tireId of tires) {
         const tire = await req.db.Tire.findById(tireId);
         if (tire) {
-          tire.history.push({
+          await addHistoryEntry(req.db.History, tire._id, {
+            type: 'Asignación',
             vehicle: id || null,
-            km: tire.kilometers,
+            kmAlta: tire.kilometers,
             status: tire.status,
           });
           await tire.save();

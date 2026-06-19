@@ -1,6 +1,8 @@
 import express from 'express';
 import TireController from '../controller/tire.controller.js';
 import { validateTireExists } from '../middleware/tireExists.js';
+import { validate } from '../middleware/validate.js';
+import { createTireSchema } from '../validators/tire.validator.js';
 
 const router = express.Router();
 
@@ -141,7 +143,7 @@ router.get('/:id', validateTireExists, TireController.getById);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/', TireController.create);
+router.post('/', validate(createTireSchema), TireController.create);
 
 /**
  * @swagger
