@@ -1,22 +1,22 @@
-import tireModel from '../models/tire.model.js';
-import vehicleModel from '../models/vehicle.model.js';
-import historyModel from '../models/history.model.js'
 import { toCorrectionType, recalculateTireState, updateTireFromState, addHistoryEntry } from '../utils/utils.js';
 
+// Los modelos llegan por `db` (inyectado por el middleware attachDb) en vez de importarse
+// globalmente. Esto habilita DB-per-tenant: el mismo service opera sobre la conexión del
+// tenant que resuelva el middleware. La conexión NUNCA se guarda como estado del singleton.
 class TireService {
-  async getAll() {
-    const populatedTires = await tireModel.find().populate('vehicle')
+  async getAll(db) {
+    const populatedTires = await db.Tire.find().populate('vehicle')
     if (!populatedTires || populatedTires.length === 0) {
       throw new Error('No se encontraron cubiertas');
     }
     return populatedTires;
   }
 
-  async getById(id) {
-    const tire = await tireModel.findById(id).populate('vehicle');
+  async getById(db, id) {
+    const tire = await db.Tire.findById(id).populate('vehicle');
     if (!tire) throw new Error('Cubierta no encontrada');
 
-    const history = await historyModel
+    const history = await db.History
       .find({ tire: id })
       .populate('vehicle')
       .populate('corrects')
@@ -25,19 +25,19 @@ class TireService {
     return { ...tire.toObject(), history };
   }
 
-  async getDocById(id) {
-    const tire = await tireModel.findById(id).populate('vehicle');
+  async getDocById(db, id) {
+    const tire = await db.Tire.findById(id).populate('vehicle');
     if (!tire) throw new Error('Cubierta no encontrada');
     return tire;
   }
 
-  async findVehicleById(id) {
-    const vehicle = await vehicleModel.findById(id);
+  async findVehicleById(db, id) {
+    const vehicle = await db.Vehicle.findById(id);
     if (!vehicle) throw new Error('Vehículo no encontrado');
     return vehicle;
   }
 
-  async createTire(data) {
+  async createTire(db, data) {
     const {
       status,
       code,
@@ -56,7 +56,7 @@ class TireService {
 
     const entryDate = createdAt ? new Date(createdAt) : new Date();
 
-    const newTire = new tireModel({
+    const newTire = new db.Tire({
       status,
       code,
       brand,
@@ -70,7 +70,7 @@ class TireService {
 
     await newTire.save();
 
-    await historyModel.create({
+    await db.History.create({
       tire: newTire._id,
       vehicle: vehicle || null,
       km: kilometers,
@@ -82,23 +82,23 @@ class TireService {
     });
 
     if (vehicle) {
-      await vehicleModel.findByIdAndUpdate(vehicle, {
+      await db.Vehicle.findByIdAndUpdate(vehicle, {
         $addToSet: { tires: newTire._id }
       });
     }
     return newTire;
   }
 
-  async assignVehicle(tireId, vehicleId, kmAlta, orderNumber, receiptNumber) {
-    const tire = await this.getDocById(tireId);
-    const vehicle = await this.findVehicleById(vehicleId);
+  async assignVehicle(db, tireId, vehicleId, kmAlta, orderNumber, receiptNumber) {
+    const tire = await this.getDocById(db, tireId);
+    const vehicle = await this.findVehicleById(db, vehicleId);
 
     if (tire.vehicle) throw new Error('La cubierta ya está asignada a un vehículo');
 
     tire.vehicle = vehicleId;
     vehicle.tires.push(tire._id);
 
-    await addHistoryEntry(tire._id, {
+    await addHistoryEntry(db.History, tire._id, {
       type: 'Asignación',
       vehicle: vehicleId,
       status: tire.status,
@@ -113,35 +113,24 @@ class TireService {
     return tire;
   }
 
-  async unassignVehicle(tireId, kmBaja, orderNumber, receiptNumber) {
-    const tire = await this.getDocById(tireId);
-    const vehicle = await this.findVehicleById(tire.vehicle);
+  async unassignVehicle(db, tireId, kmBaja, orderNumber, receiptNumber) {
+    const tire = await this.getDocById(db, tireId);
+    const vehicle = await this.findVehicleById(db, tire.vehicle);
 
-    console.log('tire', tire)
-    console.log('vehicle', vehicle)
-
-    const history = await historyModel
+    const history = await db.History
       .find({ tire: tireId })
       .sort({ date: 1 });
-
-    console.log('history', history)
 
     const currentState = recalculateTireState(history);
     const kmAlta = currentState.lastAssignmentKm;
     const kmRecorridos = kmBaja - kmAlta;
 
-    console.log('currentState', currentState)
-    console.log('kmAlta', kmAlta)
-    console.log('kmBaja', kmBaja)
-
     if (kmRecorridos < 0) throw new Error('Kilometraje de baja no puede ser menor que el de alta');
-
-    console.log('kmRecorridos', kmRecorridos)
 
     tire.vehicle = null;
     tire.kilometers += kmRecorridos;
 
-    await addHistoryEntry(tire._id, {
+    await addHistoryEntry(db.History, tire._id, {
       type: 'Desasignación',
       status: tire.status,
       kmBaja,
@@ -152,7 +141,7 @@ class TireService {
       receiptNumber
     });
 
-    const updatedHistory = await historyModel.find({ tire: tireId }).sort({ date: 1 });
+    const updatedHistory = await db.History.find({ tire: tireId }).sort({ date: 1 });
     const finalState = recalculateTireState(updatedHistory);
     updateTireFromState(tire, finalState);
 
@@ -168,13 +157,13 @@ class TireService {
     };
   }
 
-  async updateTireStatus(tireId, status, orderNumber, receiptNumber) {
-    const tire = await this.getDocById(tireId);
+  async updateTireStatus(db, tireId, status, orderNumber, receiptNumber) {
+    const tire = await this.getDocById(db, tireId);
     const previousStatus = tire.status;
 
     tire.status = status;
 
-    await addHistoryEntry(tire._id, {
+    await addHistoryEntry(db.History, tire._id, {
       type: 'Estado',
       vehicle: tire.vehicle,
       status,
@@ -186,8 +175,8 @@ class TireService {
     return { tire, previousStatus };
   }
 
-  async correctData(tireId, data) {
-    const tire = await this.getDocById(tireId);
+  async correctData(db, tireId, data) {
+    const tire = await this.getDocById(db, tireId);
     const allowedFields = ['serialNumber', 'code', 'size', 'brand', 'pattern'];
     const { reason, date, orderNumber } = data.form;
 
@@ -222,7 +211,7 @@ class TireService {
 
     const parsedDate = date && !isNaN(new Date(date)) ? new Date(date) : new Date();
 
-    await addHistoryEntry(tire._id, {
+    await addHistoryEntry(db.History, tire._id, {
       type: 'Corrección-Alta',
       date: parsedDate,
       km: tire.kilometers || 0,
@@ -246,12 +235,12 @@ class TireService {
     };
   }
 
-  async correctHistoryEntry(tireId, historyId, updates) {
-    const tire = await this.getDocById(tireId);
-    const original = await historyModel.findById(historyId).populate('vehicle').populate('corrects');
+  async correctHistoryEntry(db, tireId, historyId, updates) {
+    const tire = await this.getDocById(db, tireId);
+    const original = await db.History.findById(historyId).populate('vehicle').populate('corrects');
 
 
-    const history = await historyModel.find({ tire: tire._id }).sort({ date: 1 });
+    const history = await db.History.find({ tire: tire._id }).sort({ date: 1 });
     const originalOrder = original.orderNumber;
     const correctionOrder = updates.form.orderNumber;
     const receiptNumber = updates.form.receiptNumber;
@@ -355,8 +344,8 @@ class TireService {
       receiptNumber
     };
 
-    const inserted = await historyModel.create(newEntry);
-    const updatedHistory = await historyModel.find({ tire: tireId }).sort({ date: 1 });
+    const inserted = await db.History.create(newEntry);
+    const updatedHistory = await db.History.find({ tire: tireId }).sort({ date: 1 });
     const finalState = recalculateTireState(updatedHistory);
     updateTireFromState(tire, finalState); // Aplicar estado final
 
@@ -370,12 +359,12 @@ class TireService {
     };
   };
 
-  async undoHistoryEntry(tireId, historyId, formData) {
+  async undoHistoryEntry(db, tireId, historyId, formData) {
     const { orderNumber, receiptNumber } = formData;
 
-    const tire = await this.getDocById(tireId);
-    const history = await historyModel.find({ tire: tire._id }).sort({ date: 1 });
-    const original = await historyModel.findById(historyId).populate('vehicle').populate('corrects');
+    const tire = await this.getDocById(db, tireId);
+    const history = await db.History.find({ tire: tire._id }).sort({ date: 1 });
+    const original = await db.History.findById(historyId).populate('vehicle').populate('corrects');
     if (!original) throw new Error("Entrada de historial no encontrada");
 
     // Definir razones
@@ -401,19 +390,19 @@ class TireService {
       case 'Asignación':
       case 'Corrección-Asignación':
         // Deshacer asignación = desasignar cubierta
-        revertedData = await this.handleUndoAssignment(tire, original, history, orderNumber, reasonFinal, receiptNumber);
+        revertedData = await this.handleUndoAssignment(db, tire, original, history, orderNumber, reasonFinal, receiptNumber);
         break;
 
       case 'Desasignación':
       case 'Corrección-Desasignación':
         // Deshacer Desasignación = reasignar a vehículo anterior
-        revertedData = await this.handleUndoUnassignment(tire, original, history, orderNumber, reasonFinal, receiptNumber);
+        revertedData = await this.handleUndoUnassignment(db, tire, original, history, orderNumber, reasonFinal, receiptNumber);
         break;
 
       case 'Estado':
       case 'Corrección-Estado':
         // Deshacer cambio de estado = volver al estado anterior
-        revertedData = await this.handleUndoStatusChange(tire, original, history, orderNumber, reasonFinal, receiptNumber);
+        revertedData = await this.handleUndoStatusChange(db, tire, original, history, orderNumber, reasonFinal, receiptNumber);
         break;
 
       case 'Alta':
@@ -426,7 +415,7 @@ class TireService {
     }
 
     // Recalcular estado final
-    const updatedHistory = await historyModel.find({ tire: tireId }).sort({ date: 1 });
+    const updatedHistory = await db.History.find({ tire: tireId }).sort({ date: 1 });
     const finalState = recalculateTireState(updatedHistory);
     updateTireFromState(tire, finalState);
 
@@ -441,7 +430,7 @@ class TireService {
     };
   }
 
-  async handleUndoAssignment(tire, original, history, correctionOrder, reason, receiptNumber) {
+  async handleUndoAssignment(db, tire, original, history, correctionOrder, reason, receiptNumber) {
     // Crear entrada de Desasignación sin kmAlta ni kmBaja
     const newEntry = {
       tire: tire._id,
@@ -459,7 +448,7 @@ class TireService {
       receiptNumber
     };
 
-    await historyModel.create(newEntry);
+    await db.History.create(newEntry);
 
     return {
       newEntry,
@@ -467,7 +456,7 @@ class TireService {
     };
   }
 
-  async handleUndoUnassignment(tire, original, history, correctionOrder, reason, receiptNumber) {
+  async handleUndoUnassignment(db, tire, original, history, correctionOrder, reason, receiptNumber) {
     // Buscar la última asignación antes de la Desasignación original
     const lastAssignment = [...history]
       .reverse()
@@ -511,7 +500,7 @@ class TireService {
       receiptNumber
     };
 
-    await historyModel.create(newEntry);
+    await db.History.create(newEntry);
 
     return {
       newEntry,
@@ -519,7 +508,7 @@ class TireService {
     };
   }
 
-  async handleUndoStatusChange(tire, original, history, correctionOrder, reason, receiptNumber) {
+  async handleUndoStatusChange(db, tire, original, history, correctionOrder, reason, receiptNumber) {
     // Buscar el estado anterior
     const previousStatusEntry = [...history]
       .reverse()
@@ -566,7 +555,7 @@ class TireService {
       receiptNumber
     };
 
-    await historyModel.create(newEntry);
+    await db.History.create(newEntry);
 
     return {
       newEntry,

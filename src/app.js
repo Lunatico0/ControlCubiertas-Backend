@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { config } from 'dotenv';
 import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
+import { attachDb } from './middleware/attachDb.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 import orderRoutes from './routes/order.routes.js';
@@ -27,6 +28,9 @@ app.get('/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(specs);
 });
+
+// Inyecta req.db (modelos). Transición mono-tenant; ver middleware/attachDb.js.
+app.use(attachDb);
 
 // Rutas principales
 app.use('/api/tires', tireRoutes);

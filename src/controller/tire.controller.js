@@ -1,10 +1,9 @@
 import TireService from '../services/tire.service.js';
-import receiptCounter from "../models/receiptCounter.model.js";
 
 class TireController {
   async getAll(req, res) {
     try {
-      const tires = await TireService.getAll();
+      const tires = await TireService.getAll(req.db);
       res.json(tires);
     } catch (error) {
       console.error('Error en getAll:', error);
@@ -15,7 +14,7 @@ class TireController {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      const tire = await TireService.getById(id);
+      const tire = await TireService.getById(req.db, id);
       res.json(tire);
     } catch (error) {
       console.error('Error en getById:', error);
@@ -25,7 +24,7 @@ class TireController {
 
   async create(req, res) {
     try {
-      const tire = await TireService.createTire(req.body);
+      const tire = await TireService.createTire(req.db, req.body);
       res.status(201).json(tire);
     } catch (error) {
       console.error('Error en create:', error);
@@ -38,9 +37,7 @@ class TireController {
       const { id } = req.params;
       const { status, orderNumber, receiptNumber } = req.body;
 
-      console.log('🧾 Receipt recibido:', receiptNumber)
-
-      const result = await TireService.updateTireStatus(id, status, orderNumber, receiptNumber);
+      const result = await TireService.updateTireStatus(req.db, id, status, orderNumber, receiptNumber);
       res.status(200).json({
         message: `Estado actualizado de "${result.previousStatus}" a "${status}".`,
         tire: result.tire
@@ -56,13 +53,11 @@ class TireController {
       const { id } = req.params;
       const { vehicle, kmAlta, orderNumber, receiptNumber } = req.body;
 
-      console.log('🧾 Receipt recibido:', receiptNumber)
-
       if (typeof kmAlta !== 'number') {
         return res.status(400).json({ message: 'Kilómetros de alta (kmAlta) requeridos.' });
       }
 
-      const tire = await TireService.assignVehicle(id, vehicle, kmAlta, orderNumber, receiptNumber);
+      const tire = await TireService.assignVehicle(req.db, id, vehicle, kmAlta, orderNumber, receiptNumber);
       res.status(200).json({ message: 'Cubierta asignada correctamente', tire });
     } catch (error) {
       console.error('Error en assignVehicle:', error);
@@ -75,13 +70,11 @@ class TireController {
       const { id } = req.params;
       const { kmBaja, orderNumber, receiptNumber } = req.body;
 
-      console.log('🧾 Receipt recibido:', receiptNumber)
-
       if (typeof kmBaja !== 'number') {
         return res.status(400).json({ message: 'Kilómetros de baja (kmBaja) requeridos.' });
       }
 
-      const result = await TireService.unassignVehicle(id, kmBaja, orderNumber, receiptNumber);
+      const result = await TireService.unassignVehicle(req.db, id, kmBaja, orderNumber, receiptNumber);
       res.status(200).json({
         message: 'Cubierta desasignada con éxito.',
         ...result
@@ -95,7 +88,7 @@ class TireController {
   async correctData(req, res) {
     try {
       const { id } = req.params;
-      const result = await TireService.correctData(id, req.body);
+      const result = await TireService.correctData(req.db, id, req.body);
       res.status(200).json({ message: 'Corrección registrada con éxito.', ...result });
     } catch (error) {
       console.error('Error en correctData:', error);
@@ -107,7 +100,7 @@ class TireController {
     try {
       const pointOfSale = 1;
 
-      const counter = await receiptCounter.findOneAndUpdate(
+      const counter = await req.db.ReceiptCounter.findOneAndUpdate(
         { pointOfSale },
         { $inc: { currentNumber: 1 } },
         { new: true, upsert: true }
@@ -125,7 +118,7 @@ class TireController {
     try {
       const { id, historyId } = req.params;
 
-      const { tire, ...rest } = await TireService.correctHistoryEntry(id, historyId, req.body);
+      const { tire, ...rest } = await TireService.correctHistoryEntry(req.db, id, historyId, req.body);
 
       res.status(200).json({ message: 'Historial actualizado correctamente.', tire, ...rest });
 
@@ -140,7 +133,7 @@ class TireController {
       const { id, historyId } = req.params;
       const formData = req.body;
 
-      const { tire, newEntry, correctedEntryId } = await TireService.undoHistoryEntry(id, historyId, formData);
+      const { tire, newEntry, correctedEntryId } = await TireService.undoHistoryEntry(req.db, id, historyId, formData);
 
       res.status(200).json({
         message: 'Entrada de historial deshecha correctamente.', tire, newEntry, correctedEntryId

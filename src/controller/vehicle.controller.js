@@ -1,10 +1,9 @@
-import tireModel from "../models/tire.model.js";
-import vehicleModel from "../models/vehicle.model.js";
-
+// Modelos vía req.db (inyectado por attachDb). NOTA: el `tire.history.push` de create/update
+// es el Bug 5 (Tire no tiene campo history) — se mantiene tal cual; se corrige en fase 04.
 class VehicleController {
   async getAll(req, res) {
     try {
-      const vehicles = await vehicleModel.find().populate('tires');
+      const vehicles = await req.db.Vehicle.find().populate('tires');
       res.json(vehicles);
     } catch (error) {
       console.error("Error al obtener los vehículos: ", error.message);
@@ -15,7 +14,7 @@ class VehicleController {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      const vehicle = await vehicleModel.findById(id).populate('tires');
+      const vehicle = await req.db.Vehicle.findById(id).populate('tires');
       res.json(vehicle);
     } catch (error) {
       console.error("Error al obtener el vehículo: ", error.message);
@@ -28,7 +27,7 @@ class VehicleController {
 
     try {
       // Verificar si alguna de las cubiertas ya está asignada a otro vehículo
-      const conflictingTires = await tireModel.find({
+      const conflictingTires = await req.db.Tire.find({
         _id: { $in: tires },
         vehicle: { $ne: null },
       });
@@ -41,12 +40,12 @@ class VehicleController {
       }
 
       // Crear el nuevo vehículo
-      const newVehicle = new vehicleModel({ brand, mobile, licensePlate, type, tires: [] });
+      const newVehicle = new req.db.Vehicle({ brand, mobile, licensePlate, type, tires: [] });
       await newVehicle.save();
 
       await Promise.all(
         tires.map(async (tireId) => {
-          const tire = await tireModel.findById(tireId);
+          const tire = await req.db.Tire.findById(tireId);
           if (tire) {
             tire.vehicle = newVehicle._id;
 
@@ -80,14 +79,14 @@ class VehicleController {
         return res.status(400).json({ message: "Debe proporcionar un array válido de cubiertas" });
       }
 
-      const vehicle = await vehicleModel.findById(id).populate("tires");
+      const vehicle = await req.db.Vehicle.findById(id).populate("tires");
       if (!vehicle) {
         return res.status(404).json({ message: "Vehículo no encontrado" });
       }
 
       const currentTires = Array.isArray(vehicle.tires) ? vehicle.tires.map((tire) => String(tire._id)) : [];
 
-      const conflictingTires = await tireModel.find({
+      const conflictingTires = await req.db.Tire.find({
         _id: { $in: tires.filter((tireId) => !currentTires.includes(tireId)) },
         vehicle: { $ne: id, $ne: null },
       });
@@ -102,7 +101,7 @@ class VehicleController {
       const tiresToRemove = currentTires.filter((tireId) => !tires.includes(tireId));
 
       try {
-        await tireModel.updateMany(
+        await req.db.Tire.updateMany(
           { _id: { $in: tiresToRemove } },
           { $set: { vehicle: null } }
         );
@@ -111,7 +110,7 @@ class VehicleController {
       }
 
       for (const tireId of tiresToRemove) {
-        const tire = await tireModel.findById(tireId);
+        const tire = await req.db.Tire.findById(tireId);
         if (tire) {
           const previousVehicle = tire.vehicle;
           tire.history.push({
@@ -124,7 +123,7 @@ class VehicleController {
       }
 
       try {
-        await tireModel.updateMany(
+        await req.db.Tire.updateMany(
           { _id: { $in: tires } },
           { $set: { vehicle: id } }
         );
@@ -133,7 +132,7 @@ class VehicleController {
       }
 
       for (const tireId of tires) {
-        const tire = await tireModel.findById(tireId);
+        const tire = await req.db.Tire.findById(tireId);
         if (tire) {
           tire.history.push({
             vehicle: id || null,
@@ -146,7 +145,7 @@ class VehicleController {
 
       vehicle.tires = tires;
 
-      const populatedVehicle = await vehicleModel.findById(id).populate("tires");
+      const populatedVehicle = await req.db.Vehicle.findById(id).populate("tires");
       res.json(populatedVehicle);
 
     } catch (error) {
@@ -160,18 +159,18 @@ class VehicleController {
       const { id } = req.params;
       const { mobile, licensePlate, brand, type } = req.body;
 
-      const vehicle = await vehicleModel.findById(id);
+      const vehicle = await req.db.Vehicle.findById(id);
       if (!vehicle) {
         return res.status(404).json({ message: "Vehículo no encontrado" });
       }
 
       // Validación opcional: evitar duplicados en mobile o patente
-      const duplicateMobile = await vehicleModel.findOne({ mobile, _id: { $ne: id } });
+      const duplicateMobile = await req.db.Vehicle.findOne({ mobile, _id: { $ne: id } });
       if (duplicateMobile) {
         return res.status(400).json({ message: "Ya existe un vehículo con ese número de móvil" });
       }
 
-      const duplicatePlate = await vehicleModel.findOne({ licensePlate, _id: { $ne: id } });
+      const duplicatePlate = await req.db.Vehicle.findOne({ licensePlate, _id: { $ne: id } });
       if (duplicatePlate) {
         return res.status(400).json({ message: "Ya existe un vehículo con esa patente" });
       }

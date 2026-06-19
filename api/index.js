@@ -5,6 +5,7 @@ import { config } from 'dotenv';
 import { specs } from '../swagger-setup.js';
 
 // Importar rutas
+import { attachDb } from '../src/middleware/attachDb.js';
 import tireRoutes from '../src/routes/tire.routes.js';
 import vehicleRoutes from '../src/routes/vehicle.routes.js';
 import orderRoutes from '../src/routes/order.routes.js';
@@ -73,6 +74,8 @@ app.get('/api-docs', (req, res) => {
     res.status(500).json({ message: 'Error al cargar la documentación' });
   }
 });
+
+app.use(attachDb);
 
 // ✅ Rutas principales (DESPUÉS de CORS)
 app.use('/api/tires', tireRoutes);

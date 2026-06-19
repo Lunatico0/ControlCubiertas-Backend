@@ -1,5 +1,3 @@
-import historyModel from '../models/history.model.js';
-
 export const toCorrectionType = (type) => {
   if (!type) return 'Corrección-Otro';
   return type.startsWith('Corrección-')
@@ -7,8 +5,8 @@ export const toCorrectionType = (type) => {
     : `Corrección-${type}`;
 };
 
-export const addHistoryEntry = async (tireId, data) => {
-  await historyModel.create({
+export const addHistoryEntry = async (History, tireId, data) => {
+  await History.create({
     ...data,
     date: new Date(),
     tire: tireId, // Asociar correctamente
