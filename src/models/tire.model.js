@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const tireSchema = new mongoose.Schema({
+export const tireSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['Nueva', '1er Recapado', '2do Recapado', '3er Recapado', 'A recapar', 'Descartada'],

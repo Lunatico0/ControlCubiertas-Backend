@@ -12,7 +12,7 @@ const historyTypes = [
   'Corrección-Otro',
 ];
 
-const historySchema = new mongoose.Schema({
+export const historySchema = new mongoose.Schema({
   tire: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Tire',

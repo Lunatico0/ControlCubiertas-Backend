@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const receiptCounterSchema = new mongoose.Schema({
+export const receiptCounterSchema = new mongoose.Schema({
   pointOfSale: {
     type: Number,
     required: true,

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const vehicleSchema = new mongoose.Schema({
+export const vehicleSchema = new mongoose.Schema({
     brand: { type: String, required: true },
     mobile: { type: String, required: true, unique: true },
     licensePlate: { type: String, required: true, unique: true },
