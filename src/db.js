@@ -2,16 +2,17 @@ import mongoose from 'mongoose';
 import { config } from 'dotenv';
 
 config();
-const mongoUrl = process.env.MONGO_URI;
 
-mongoose.connect(mongoUrl, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log('Conexión a MongoDB exitosa');
-}).catch((error) => {
-    console.error('Error al conectar a MongoDB:', error);
-});
+mongoose.set('strictPopulate', false);
 
+// Conexión perezosa: se invoca explícitamente desde el bootstrap (app.logged.js /
+// api/index.js) o desde los tests (apuntando a mongodb-memory-server). Importar este
+// módulo ya NO abre una conexión — eso desacopla el arranque y permite testear aislado
+// sin pegar a Atlas.
+export async function connectMongo(uri = process.env.MONGO_URI) {
+  await mongoose.connect(uri);
+  console.log('Conexión a MongoDB exitosa');
+  return mongoose.connection;
+}
 
-mongoose.set("strictPopulate", false);
+export default connectMongo;

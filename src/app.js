@@ -1,5 +1,4 @@
 import express from 'express';
-import './db.js';
 import cors from 'cors';
 import { config } from 'dotenv';
 import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
@@ -77,12 +76,7 @@ app.use('*', (req, res) => {
   });
 });
 
-// Iniciar servidor solo en desarrollo
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`📚 Documentación disponible en: http://localhost:${PORT}/api-docs`);
-  });
-}
-
+// app.js exporta una factory pura del app Express (sin side-effects de conexión ni
+// listen), para poder importarlo en tests con supertest. El arranque real (conectar +
+// listen) vive en app.logged.js (local) y api/index.js (serverless).
 export default app;

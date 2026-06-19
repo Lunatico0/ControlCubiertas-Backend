@@ -1,5 +1,5 @@
 import express from 'express';
-import '../src/db.js';
+import { connectMongo } from '../src/db.js';
 import cors from 'cors';
 import { config } from 'dotenv';
 import { specs } from '../swagger-setup.js';
@@ -10,6 +10,10 @@ import vehicleRoutes from '../src/routes/vehicle.routes.js';
 import orderRoutes from '../src/routes/order.routes.js';
 
 config();
+
+// Serverless: conectar en el cold start. Mongoose bufferea las queries hasta que la
+// conexión está lista, así las primeras requests no fallan.
+connectMongo().catch((err) => console.error('Error conectando a Mongo:', err));
 
 const app = express();
 

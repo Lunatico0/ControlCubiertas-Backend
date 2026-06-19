@@ -1,5 +1,5 @@
 import express from 'express';
-import './db.js';
+import { connectMongo } from './db.js';
 import cors from 'cors';
 import { config } from 'dotenv';
 import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
@@ -121,9 +121,11 @@ app.use('*', (req, res) => {
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 4000;
 
-  app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`📚 Documentación disponible en: http://localhost:${PORT}/api-docs`);
+  connectMongo().then(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+      console.log(`📚 Documentación disponible en: http://localhost:${PORT}/api-docs`);
+    });
   });
 }
 
