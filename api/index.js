@@ -1,11 +1,13 @@
 import express from 'express';
 import { connectMongo } from '../src/db.js';
+import { connectControlPlane } from '../src/db/controlPlane.js';
 import cors from 'cors';
 import { config } from 'dotenv';
 import { specs } from '../swagger-setup.js';
 
 // Importar rutas
 import { attachDb } from '../src/middleware/attachDb.js';
+import authRoutes from '../src/routes/auth.routes.js';
 import tireRoutes from '../src/routes/tire.routes.js';
 import vehicleRoutes from '../src/routes/vehicle.routes.js';
 import orderRoutes from '../src/routes/order.routes.js';
@@ -15,6 +17,9 @@ config();
 // Serverless: conectar en el cold start. Mongoose bufferea las queries hasta que la
 // conexión está lista, así las primeras requests no fallan.
 connectMongo().catch((err) => console.error('Error conectando a Mongo:', err));
+if (process.env.CONTROL_PLANE_URI) {
+  connectControlPlane().catch((err) => console.error('Error conectando al control plane:', err));
+}
 
 const app = express();
 
@@ -74,6 +79,8 @@ app.get('/api-docs', (req, res) => {
     res.status(500).json({ message: 'Error al cargar la documentación' });
   }
 });
+
+app.use('/api/auth', authRoutes);
 
 app.use(attachDb);
 

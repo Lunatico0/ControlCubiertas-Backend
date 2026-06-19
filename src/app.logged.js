@@ -1,5 +1,6 @@
 import express from 'express';
 import { connectMongo } from './db.js';
+import { connectControlPlane } from './db/controlPlane.js';
 import cors from 'cors';
 import { config } from 'dotenv';
 import { requestLogger, errorLogger } from './middleware/logging.middleware.js';
@@ -8,6 +9,7 @@ import { specs } from '../swagger-setup.js';
 import logger from './config/logger.js';
 
 import { attachDb } from './middleware/attachDb.js';
+import authRoutes from './routes/auth.routes.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 import orderRoutes from './routes/order.routes.js';
@@ -80,6 +82,9 @@ app.get('/api-docs.json', (req, res) => {
   res.send(specs);
 });
 
+// Auth (control plane) — va ANTES de attachDb (no opera sobre la DB del tenant).
+app.use('/api/auth', authRoutes);
+
 // Inyecta req.db (modelos). Transición mono-tenant; ver middleware/attachDb.js.
 app.use(attachDb);
 
@@ -125,7 +130,17 @@ app.use('*', (req, res) => {
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 4000;
 
-  connectMongo().then(() => {
+  connectMongo().then(async () => {
+    if (process.env.CONTROL_PLANE_URI) {
+      try {
+        await connectControlPlane();
+        console.log('🔐 Control plane (auth) conectado');
+      } catch (e) {
+        console.error('Control plane no disponible:', e.message);
+      }
+    } else {
+      console.warn('⚠️  CONTROL_PLANE_URI no seteado: las rutas /api/auth no funcionarán.');
+    }
     app.listen(PORT, () => {
       console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
       console.log(`📚 Documentación disponible en: http://localhost:${PORT}/api-docs`);

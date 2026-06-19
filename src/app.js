@@ -3,6 +3,7 @@ import cors from 'cors';
 import { config } from 'dotenv';
 import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
 import { attachDb } from './middleware/attachDb.js';
+import authRoutes from './routes/auth.routes.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 import orderRoutes from './routes/order.routes.js';
@@ -28,6 +29,9 @@ app.get('/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(specs);
 });
+
+// Auth (control plane) — va ANTES de attachDb porque no opera sobre la DB del tenant.
+app.use('/api/auth', authRoutes);
 
 // Inyecta req.db (modelos). Transición mono-tenant; ver middleware/attachDb.js.
 app.use(attachDb);
