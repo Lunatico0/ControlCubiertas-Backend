@@ -1,13 +1,17 @@
-import Tire from '../models/tire.model.js';
-import Vehicle from '../models/vehicle.model.js';
-import History from '../models/history.model.js';
-import ReceiptCounter from '../models/receiptCounter.model.js';
+import { getTenantDb } from '../db/tenantConnections.js';
 
-// Inyecta los modelos en req.db. HOY (transición mono-tenant) son los modelos globales.
-// Cuando llegue el auth multi-tenant (fase 03), este middleware pasará a resolver los
-// modelos del tenant vía el connection manager (getTenantDb) según el JWT — SIN tocar
-// controllers ni services, que ya consumen req.db.
+// Resuelve la conexión del TENANT (a partir del JWT) y expone sus modelos en req.db.
+// DB-per-tenant real: cada request opera sobre la DB del tenant del token.
+// Debe montarse DESPUÉS de authenticate (necesita req.auth.dbName).
 export function attachDb(req, res, next) {
-  req.db = { Tire, Vehicle, History, ReceiptCounter };
-  next();
+  const dbName = req.auth?.dbName;
+  if (!dbName) {
+    return res.status(401).json({ message: 'No autenticado' });
+  }
+  try {
+    req.db = getTenantDb(dbName).models;
+    next();
+  } catch (err) {
+    return res.status(503).json({ message: 'Base del tenant no disponible', error: err.message });
+  }
 }

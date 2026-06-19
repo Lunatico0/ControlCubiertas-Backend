@@ -1,5 +1,5 @@
 import express from 'express';
-import { connectMongo } from '../src/db.js';
+import { initBaseConnection } from '../src/db/tenantConnections.js';
 import { connectControlPlane } from '../src/db/controlPlane.js';
 import cors from 'cors';
 import { config } from 'dotenv';
@@ -7,6 +7,7 @@ import { specs } from '../swagger-setup.js';
 
 // Importar rutas
 import { attachDb } from '../src/middleware/attachDb.js';
+import { authenticate } from '../src/middleware/auth.middleware.js';
 import authRoutes from '../src/routes/auth.routes.js';
 import tireRoutes from '../src/routes/tire.routes.js';
 import vehicleRoutes from '../src/routes/vehicle.routes.js';
@@ -16,7 +17,7 @@ config();
 
 // Serverless: conectar en el cold start. Mongoose bufferea las queries hasta que la
 // conexión está lista, así las primeras requests no fallan.
-connectMongo().catch((err) => console.error('Error conectando a Mongo:', err));
+initBaseConnection(process.env.MONGO_URI);
 if (process.env.CONTROL_PLANE_URI) {
   connectControlPlane().catch((err) => console.error('Error conectando al control plane:', err));
 }
@@ -82,12 +83,10 @@ app.get('/api-docs', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 
-app.use(attachDb);
-
-// ✅ Rutas principales (DESPUÉS de CORS)
-app.use('/api/tires', tireRoutes);
-app.use('/api/vehicles', vehicleRoutes);
-app.use('/api/orders', orderRoutes);
+// ✅ Rutas de negocio: authenticate (JWT) -> attachDb (resuelve la DB del tenant)
+app.use('/api/tires', authenticate, attachDb, tireRoutes);
+app.use('/api/vehicles', authenticate, attachDb, vehicleRoutes);
+app.use('/api/orders', authenticate, attachDb, orderRoutes);
 
 // Rutas básicas
 app.get('/', (req, res) => {

@@ -3,6 +3,7 @@ import cors from 'cors';
 import { config } from 'dotenv';
 import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
 import { attachDb } from './middleware/attachDb.js';
+import { authenticate } from './middleware/auth.middleware.js';
 import authRoutes from './routes/auth.routes.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
@@ -30,16 +31,13 @@ app.get('/api-docs.json', (req, res) => {
   res.send(specs);
 });
 
-// Auth (control plane) — va ANTES de attachDb porque no opera sobre la DB del tenant.
+// Auth (control plane) — público, no opera sobre la DB del tenant.
 app.use('/api/auth', authRoutes);
 
-// Inyecta req.db (modelos). Transición mono-tenant; ver middleware/attachDb.js.
-app.use(attachDb);
-
-// Rutas principales
-app.use('/api/tires', tireRoutes);
-app.use('/api/vehicles', vehicleRoutes);
-app.use('/api/orders', orderRoutes);
+// Rutas de negocio: authenticate (verifica JWT) -> attachDb (resuelve la DB del tenant).
+app.use('/api/tires', authenticate, attachDb, tireRoutes);
+app.use('/api/vehicles', authenticate, attachDb, vehicleRoutes);
+app.use('/api/orders', authenticate, attachDb, orderRoutes);
 
 // Rutas básicas
 app.get('/', (req, res) => {

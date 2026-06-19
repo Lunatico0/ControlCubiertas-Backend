@@ -1,5 +1,5 @@
 import express from 'express';
-import { connectMongo } from './db.js';
+import { initBaseConnection } from './db/tenantConnections.js';
 import { connectControlPlane } from './db/controlPlane.js';
 import cors from 'cors';
 import { config } from 'dotenv';
@@ -9,6 +9,7 @@ import { specs } from '../swagger-setup.js';
 import logger from './config/logger.js';
 
 import { attachDb } from './middleware/attachDb.js';
+import { authenticate } from './middleware/auth.middleware.js';
 import authRoutes from './routes/auth.routes.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
@@ -85,13 +86,10 @@ app.get('/api-docs.json', (req, res) => {
 // Auth (control plane) — va ANTES de attachDb (no opera sobre la DB del tenant).
 app.use('/api/auth', authRoutes);
 
-// Inyecta req.db (modelos). Transición mono-tenant; ver middleware/attachDb.js.
-app.use(attachDb);
-
-// Rutas principales
-app.use('/api/tires', tireRoutes);
-app.use('/api/vehicles', vehicleRoutes);
-app.use('/api/orders', orderRoutes);
+// Rutas de negocio: authenticate (JWT) -> attachDb (resuelve la DB del tenant).
+app.use('/api/tires', authenticate, attachDb, tireRoutes);
+app.use('/api/vehicles', authenticate, attachDb, vehicleRoutes);
+app.use('/api/orders', authenticate, attachDb, orderRoutes);
 
 // Rutas base
 app.get('/', (req, res) => {
@@ -130,7 +128,8 @@ app.use('*', (req, res) => {
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 4000;
 
-  connectMongo().then(async () => {
+  initBaseConnection(process.env.MONGO_URI).asPromise().then(async () => {
+    console.log('🗄️  Conexión base (data plane) lista');
     if (process.env.CONTROL_PLANE_URI) {
       try {
         await connectControlPlane();
