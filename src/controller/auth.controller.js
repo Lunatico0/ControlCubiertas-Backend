@@ -22,6 +22,15 @@ class AuthController {
       res.status(401).json({ message: error.message });
     }
   }
+
+  async changePassword(req, res) {
+    try {
+      await authService.changePassword(getControlModels(), req.auth.userId, req.body.currentPassword, req.body.newPassword);
+      res.json({ message: 'Contraseña actualizada' });
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  }
 }
 
 export default new AuthController();

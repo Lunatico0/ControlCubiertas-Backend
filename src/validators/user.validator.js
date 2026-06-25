@@ -10,6 +10,11 @@ export const setUserStatusSchema = z.object({
   status: z.enum(['active', 'inactive']),
 });
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6),
+});
+
 export const updateCompanySchema = z.object({
   name: z.string().min(1).optional(),
   cuit: z.string().optional(),

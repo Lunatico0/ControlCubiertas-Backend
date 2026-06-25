@@ -50,8 +50,23 @@ export async function login({ User, Tenant }, email, password) {
       name: user.name,
       role: user.role,
       tenantId: tenant._id,
+      mustChangePassword: user.mustChangePassword,
     },
   };
+}
+
+// Cambio de contraseña (también cubre el "primer ingreso": el usuario llega con la
+// password temporal como currentPassword y al cambiarla se baja mustChangePassword).
+export async function changePassword({ User }, userId, currentPassword, newPassword) {
+  const user = await User.findById(userId);
+  if (!user) throw new Error('Usuario no encontrado');
+
+  const ok = await verifyPassword(currentPassword, user.passwordHash);
+  if (!ok) throw new Error('La contraseña actual es incorrecta');
+
+  user.passwordHash = await hashPassword(newPassword);
+  user.mustChangePassword = false;
+  await user.save();
 }
 
 // Refresh: valida el refresh token, recarga user + tenant y emite un nuevo access token

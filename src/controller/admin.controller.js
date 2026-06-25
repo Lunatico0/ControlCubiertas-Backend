@@ -1,5 +1,6 @@
 import * as userAdmin from '../services/userAdmin.service.js';
 import * as company from '../services/company.service.js';
+import { getTenantSummary } from '../services/stats.service.js';
 
 // Panel de administración (tenant-admin). Opera sobre el CONTROL PLANE; el tenant
 // se toma SIEMPRE de req.auth.tenantId (nunca del body), así un admin no puede
@@ -44,6 +45,14 @@ class AdminController {
       res.json(await company.updateCompany(req.auth.tenantId, req.body));
     } catch (error) {
       res.status(400).json({ message: error.message });
+    }
+  }
+
+  async summary(req, res) {
+    try {
+      res.json(await getTenantSummary(req.auth.dbName));
+    } catch (error) {
+      res.status(500).json({ message: error.message });
     }
   }
 }

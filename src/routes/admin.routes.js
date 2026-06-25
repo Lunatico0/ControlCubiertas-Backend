@@ -13,6 +13,7 @@ router.get('/users', (req, res) => AdminController.listUsers(req, res));
 router.post('/users', validate(createUserSchema), (req, res) => AdminController.createUser(req, res));
 router.patch('/users/:id/status', validate(setUserStatusSchema), (req, res) => AdminController.setUserStatus(req, res));
 
+router.get('/summary', (req, res) => AdminController.summary(req, res));
 router.get('/company', (req, res) => AdminController.getCompany(req, res));
 router.patch('/company', validate(updateCompanySchema), (req, res) => AdminController.updateCompany(req, res));
 
