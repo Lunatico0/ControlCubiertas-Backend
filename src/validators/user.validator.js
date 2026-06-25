@@ -9,3 +9,13 @@ export const createUserSchema = z.object({
 export const setUserStatusSchema = z.object({
   status: z.enum(['active', 'inactive']),
 });
+
+export const updateCompanySchema = z.object({
+  name: z.string().min(1).optional(),
+  cuit: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  receiptPrefix: z.string().optional(),
+  receiptFooter: z.string().optional(),
+  stockStatuses: z.array(z.string()).optional(),
+});
