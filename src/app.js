@@ -5,6 +5,7 @@ import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
 import { attachDb } from './middleware/attachDb.js';
 import { authenticate } from './middleware/auth.middleware.js';
 import authRoutes from './routes/auth.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 import orderRoutes from './routes/order.routes.js';
@@ -33,6 +34,7 @@ app.get('/api-docs.json', (req, res) => {
 
 // Auth (control plane) — público, no opera sobre la DB del tenant.
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Rutas de negocio: authenticate (verifica JWT) -> attachDb (resuelve la DB del tenant).
 app.use('/api/tires', authenticate, attachDb, tireRoutes);

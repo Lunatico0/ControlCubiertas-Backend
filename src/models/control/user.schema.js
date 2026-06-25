@@ -11,6 +11,7 @@ export const userSchema = new mongoose.Schema(
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
     role: { type: String, enum: ['tenant-admin', 'operator'], default: 'operator' },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+    mustChangePassword: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
