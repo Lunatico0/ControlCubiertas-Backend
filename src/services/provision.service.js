@@ -15,14 +15,18 @@ export function slugifyDbName(name) {
 }
 
 // Provisiona un cliente nuevo: registro en el control plane (tenant + admin) y siembra
-// su DB de negocio (índices + contador de recibos). Idempotente: aborta si ya existe.
-export async function provisionTenant({ name, adminEmail, password, plan = 'free' }) {
+// su DB de negocio. Idempotente: aborta si ya existe el tenant/email.
+//
+// `dbName` opcional: si se pasa, el tenant apunta a esa DB (CUTOVER de una DB con datos
+// existente). Si no, se deriva del nombre (cliente nuevo). El seed del contador es
+// idempotente (no duplica si la DB ya tenía datos).
+export async function provisionTenant({ name, adminEmail, password, plan = 'free', dbName }) {
   const { User, Tenant } = getControlModels();
-  const dbName = slugifyDbName(name);
+  const finalDbName = dbName || slugifyDbName(name);
   const email = adminEmail.toLowerCase().trim();
 
-  if (await Tenant.findOne({ $or: [{ name }, { dbName }] })) {
-    throw new Error(`Ya existe un tenant "${name}" (${dbName})`);
+  if (await Tenant.findOne({ $or: [{ name }, { dbName: finalDbName }] })) {
+    throw new Error(`Ya existe un tenant "${name}" (${finalDbName})`);
   }
   if (await User.findOne({ email })) {
     throw new Error(`El email ${email} ya está registrado`);
@@ -30,7 +34,7 @@ export async function provisionTenant({ name, adminEmail, password, plan = 'free
 
   const tempPassword = password || crypto.randomBytes(6).toString('hex');
 
-  const tenant = await Tenant.create({ name, dbName, plan, status: 'active' });
+  const tenant = await Tenant.create({ name, dbName: finalDbName, plan, status: 'active' });
   const user = await User.create({
     email,
     passwordHash: await hashPassword(tempPassword),
@@ -38,16 +42,20 @@ export async function provisionTenant({ name, adminEmail, password, plan = 'free
     role: 'tenant-admin',
   });
 
-  // Siembra la DB del tenant: construye índices (unique de code/serial/mobile/placa, etc.)
-  // y crea el contador de recibos inicial.
-  const { models } = getTenantDb(dbName);
+  // Siembra la DB del tenant: índices + contador de recibos (idempotente para soportar
+  // cutover de una DB que ya tenía datos).
+  const { models } = getTenantDb(finalDbName);
   await Promise.all([
     models.Tire.init(),
     models.Vehicle.init(),
     models.History.init(),
     models.ReceiptCounter.init(),
   ]);
-  await models.ReceiptCounter.create({ pointOfSale: 1, currentNumber: 0 });
+  await models.ReceiptCounter.findOneAndUpdate(
+    { pointOfSale: 1 },
+    { $setOnInsert: { currentNumber: 0 } },
+    { upsert: true }
+  );
 
-  return { tenant, user, dbName, tempPassword };
+  return { tenant, user, dbName: finalDbName, tempPassword };
 }

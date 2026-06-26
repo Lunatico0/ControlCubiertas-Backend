@@ -19,6 +19,7 @@ function getArg(flag) {
 const name = getArg('--name');
 const adminEmail = getArg('--admin-email');
 const password = getArg('--password');
+const dbName = getArg('--db-name'); // opcional: cutover a una DB existente
 
 if (!name || !adminEmail) {
   console.error('Uso: node scripts/provision-tenant.js --name "Cliente X" --admin-email admin@x.com [--password ...]');
@@ -33,7 +34,7 @@ await connectControlPlane();
 initBaseConnection(process.env.MONGO_URI);
 
 try {
-  const r = await provisionTenant({ name, adminEmail, password });
+  const r = await provisionTenant({ name, adminEmail, password, dbName });
   console.log('\n✅ Tenant provisionado:');
   console.log('   Nombre:   ', r.tenant.name);
   console.log('   DB:       ', r.dbName);
