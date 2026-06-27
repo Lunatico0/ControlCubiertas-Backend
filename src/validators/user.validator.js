@@ -15,6 +15,19 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(6),
 });
 
+export const receiptDesignSchema = z.object({
+  logo: z.string().nullable().optional(),
+  logoPos: z.enum(['left', 'center', 'right']).optional(),
+  logoSize: z.enum(['S', 'M', 'L']).optional(),
+  showHeader: z.boolean().optional(),
+  accent: z.string().optional(),
+  font: z.string().optional(),
+  textSize: z.enum(['S', 'M', 'L']).optional(),
+  align: z.enum(['left', 'center']).optional(),
+  duplicado: z.boolean().optional(),
+  sections: z.array(z.object({ key: z.string(), label: z.string(), on: z.boolean() })).optional(),
+});
+
 export const updateCompanySchema = z.object({
   name: z.string().min(1).optional(),
   cuit: z.string().optional(),
@@ -23,4 +36,5 @@ export const updateCompanySchema = z.object({
   receiptPrefix: z.string().optional(),
   receiptFooter: z.string().optional(),
   stockStatuses: z.array(z.string()).optional(),
+  receiptDesign: receiptDesignSchema.optional(),
 });

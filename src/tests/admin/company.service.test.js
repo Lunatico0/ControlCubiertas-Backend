@@ -40,6 +40,32 @@ describe('company.service (config de empresa)', () => {
     expect(c.stockStatuses).toEqual(['Nueva', 'A recapar']);
   });
 
+  it('updateCompany persiste el diseño del comprobante (receiptDesign)', async () => {
+    const design = {
+      logo: 'data:image/png;base64,AAAA',
+      logoPos: 'center',
+      logoSize: 'L',
+      showHeader: true,
+      accent: '#2358C5',
+      font: "'IBM Plex Sans', sans-serif",
+      textSize: 'L',
+      align: 'center',
+      duplicado: false,
+      sections: [
+        { key: 'cubierta', label: 'Datos de la cubierta', on: true },
+        { key: 'orden', label: 'N° de orden', on: false },
+      ],
+    };
+    const c = await updateCompany(tenant._id, { receiptDesign: design });
+    expect(c.receiptDesign.logoPos).toBe('center');
+    expect(c.receiptDesign.duplicado).toBe(false);
+    expect(c.receiptDesign.sections).toHaveLength(2);
+    expect(c.receiptDesign.sections[1].on).toBe(false);
+
+    const fetched = await getCompany(tenant._id);
+    expect(fetched.receiptDesign.accent).toBe('#2358C5');
+  });
+
   it('updateCompany NO permite cambiar dbName ni status (campos del sistema)', async () => {
     const c = await updateCompany(tenant._id, { dbName: 'hackeado', status: 'suspended', name: 'Solo nombre' });
     expect(c.dbName).toBe('tenant_acme_co');

@@ -2,7 +2,7 @@ import { getControlModels } from '../db/controlPlane.js';
 
 // Config de la empresa (tenant) editable por el tenant-admin. Campos del sistema
 // (dbName, plan, status) NO se tocan acá — solo los administra el provisioning/super-admin.
-const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses'];
+const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses', 'receiptDesign'];
 
 export async function getCompany(tenantId) {
   const { Tenant } = getControlModels();
