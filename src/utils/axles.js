@@ -30,6 +30,24 @@ export function generatePositions(axles = []) {
   return positions;
 }
 
+// Mapa de posiciones de un vehículo: cada posición derivada de sus ejes con la cubierta
+// montada ahí (subset de campos), o null si está libre. Lo consume el frontend para
+// dibujar el esquema del vehículo y ofrecer el selector de posición al montar.
+// tires: documentos de cubierta (con .position cuando están montadas).
+export function buildVehiclePositions(axles = [], tires = []) {
+  const byPos = new Map();
+  for (const t of tires || []) {
+    if (t?.position) byPos.set(t.position, t);
+  }
+  return generatePositions(axles).map((p) => {
+    const t = byPos.get(p.code);
+    return {
+      ...p,
+      tire: t ? { _id: String(t._id), code: t.code, status: t.status, brand: t.brand } : null,
+    };
+  });
+}
+
 // Presets de las disposiciones más usadas en LATAM (para sugerir en el alta de vehículo).
 export const AXLE_PRESETS = {
   auto:       { label: 'Auto / Camioneta',     axles: [{ type: 'simple' }, { type: 'simple' }] },

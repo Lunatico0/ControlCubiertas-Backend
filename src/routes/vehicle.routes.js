@@ -62,6 +62,27 @@ router.get('/:id', VehicleController.getById);
 
 /**
  * @swagger
+ * /api/vehicles/{id}/positions:
+ *   get:
+ *     summary: Posiciones de cubierta del vehículo (esquema de ejes + ocupación)
+ *     tags: [Vehículos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del vehículo
+ *     responses:
+ *       200:
+ *         description: Lista de posiciones derivadas de los ejes, con la cubierta montada en cada una (o null)
+ *       404:
+ *         description: Vehículo no encontrado
+ */
+router.get('/:id/positions', VehicleController.getPositions);
+
+/**
+ * @swagger
  * /api/vehicles:
  *   post:
  *     summary: Crear un nuevo vehículo

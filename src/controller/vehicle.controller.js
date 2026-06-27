@@ -1,4 +1,5 @@
 import { addHistoryEntry } from '../utils/utils.js';
+import { buildVehiclePositions } from '../utils/axles.js';
 
 // Modelos vía req.db (inyectado por attachDb). El historial vive en la colección History
 // (no en el doc Tire): por eso usamos addHistoryEntry y NO tire.history.push (Bug 5 resuelto).
@@ -24,8 +25,26 @@ class VehicleController {
     }
   }
 
+  // Esquema de ejes del vehículo + qué cubierta ocupa cada posición (o null si libre).
+  // Lo consume el frontend para dibujar el vehículo y ofrecer el selector al montar.
+  async getPositions(req, res) {
+    try {
+      const { id } = req.params;
+      const vehicle = await req.db.Vehicle.findById(id);
+      if (!vehicle) return res.status(404).json({ message: 'Vehículo no encontrado' });
+
+      const tires = await req.db.Tire.find({ vehicle: id });
+      const positions = buildVehiclePositions(vehicle.axles, tires);
+
+      res.json({ vehicleId: String(vehicle._id), axles: vehicle.axles, positions });
+    } catch (error) {
+      console.error('Error al obtener posiciones del vehículo:', error.message);
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async create(req, res) {
-    const { brand, mobile, licensePlate, type, tires } = req.body;
+    const { brand, mobile, licensePlate, type, tires, axles, kilometers } = req.body;
 
     try {
       // Verificar si alguna de las cubiertas ya está asignada a otro vehículo
@@ -41,8 +60,8 @@ class VehicleController {
         });
       }
 
-      // Crear el nuevo vehículo
-      const newVehicle = new req.db.Vehicle({ brand, mobile, licensePlate, type, tires: [] });
+      // Crear el nuevo vehículo (axles/kilometers opcionales: defaults [] y 0 vía schema)
+      const newVehicle = new req.db.Vehicle({ brand, mobile, licensePlate, type, axles, kilometers, tires: [] });
       await newVehicle.save();
 
       await Promise.all(
