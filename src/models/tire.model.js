@@ -12,7 +12,9 @@ export const tireSchema = new mongoose.Schema({
   size: { type: String, required: true },
   serialNumber: { type: String, required: true },
   kilometers: { type: Number, default: 0 },
-  vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' }
+  vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' },
+  // Posición en el eje cuando está montada (código de slot: E1-I, E2-DE, …). null en depósito.
+  position: { type: String, default: null }
 }, {
   timestamps: true
 });
