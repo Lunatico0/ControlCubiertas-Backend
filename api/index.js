@@ -33,6 +33,19 @@ app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Garantiza el control plane conectado ANTES de procesar la request. Idempotente
+// (instantáneo si ya conectó). En serverless el connectControlPlane() del cold start es
+// async y no esperado → las primeras requests al control plane fallaban con "no
+// inicializado". El data plane no necesita esto (mongoose bufferea las queries).
+app.use(async (req, res, next) => {
+  try {
+    if (process.env.CONTROL_PLANE_URI) await connectControlPlane();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Rutas de API
 app.get('/api-docs', (req, res) => {
   try {
