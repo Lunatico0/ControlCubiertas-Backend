@@ -1,4 +1,5 @@
 import { toCorrectionType, recalculateTireState, updateTireFromState, addHistoryEntry } from '../utils/utils.js';
+import { generatePositions } from '../utils/axles.js';
 
 // Los modelos llegan por `db` (inyectado por el middleware attachDb) en vez de importarse
 // globalmente. Esto habilita DB-per-tenant: el mismo service opera sobre la conexión del
@@ -89,13 +90,22 @@ class TireService {
     return newTire;
   }
 
-  async assignVehicle(db, tireId, vehicleId, kmAlta, orderNumber, receiptNumber) {
+  async assignVehicle(db, tireId, vehicleId, kmAlta, orderNumber, receiptNumber, position) {
     const tire = await this.getDocById(db, tireId);
     const vehicle = await this.findVehicleById(db, vehicleId);
 
     if (tire.vehicle) throw new Error('La cubierta ya está asignada a un vehículo');
 
+    // Posición opcional: si viene, debe existir en los ejes del vehículo y estar libre.
+    if (position) {
+      const exists = generatePositions(vehicle.axles).some((p) => p.code === position);
+      if (!exists) throw new Error(`La posición ${position} no existe en este vehículo`);
+      const occupied = await db.Tire.findOne({ vehicle: vehicleId, position, _id: { $ne: tire._id } });
+      if (occupied) throw new Error(`La posición ${position} ya está ocupada en este vehículo`);
+    }
+
     tire.vehicle = vehicleId;
+    tire.position = position || null;
     vehicle.tires.push(tire._id);
 
     await addHistoryEntry(db.History, tire._id, {
@@ -128,6 +138,7 @@ class TireService {
     if (kmRecorridos < 0) throw new Error('Kilometraje de baja no puede ser menor que el de alta');
 
     tire.vehicle = null;
+    tire.position = null; // al bajar del vehículo, la cubierta deja su posición libre
     tire.kilometers += kmRecorridos;
 
     await addHistoryEntry(db.History, tire._id, {

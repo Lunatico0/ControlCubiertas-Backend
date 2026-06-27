@@ -51,13 +51,13 @@ class TireController {
   async assignVehicle(req, res) {
     try {
       const { id } = req.params;
-      const { vehicle, kmAlta, orderNumber, receiptNumber } = req.body;
+      const { vehicle, kmAlta, orderNumber, receiptNumber, position } = req.body;
 
       if (typeof kmAlta !== 'number') {
         return res.status(400).json({ message: 'Kilómetros de alta (kmAlta) requeridos.' });
       }
 
-      const tire = await TireService.assignVehicle(req.db, id, vehicle, kmAlta, orderNumber, receiptNumber);
+      const tire = await TireService.assignVehicle(req.db, id, vehicle, kmAlta, orderNumber, receiptNumber, position);
       res.status(200).json({ message: 'Cubierta asignada correctamente', tire });
     } catch (error) {
       console.error('Error en assignVehicle:', error);
