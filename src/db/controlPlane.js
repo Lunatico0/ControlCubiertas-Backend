@@ -7,6 +7,10 @@ import { tenantSchema } from '../models/control/tenant.schema.js';
 
 let controlConn = null;
 let models = null;
+// Promesa de conexión compartida: evita el race en serverless donde el cold start dispara
+// connectControlPlane() (async, no esperado) → controlConn quedaba seteado pero models aún
+// null, y una request concurrente veía controlConn "truthy" y devolvía models=null.
+let connectPromise = null;
 
 export function registerControlModels(conn) {
   return {
@@ -16,12 +20,16 @@ export function registerControlModels(conn) {
 }
 
 export async function connectControlPlane(uri = process.env.CONTROL_PLANE_URI) {
-  if (controlConn) return models;
+  if (models) return models;
+  if (connectPromise) return connectPromise;
   if (!uri) throw new Error('Falta CONTROL_PLANE_URI para el control plane.');
-  controlConn = mongoose.createConnection(uri);
-  await controlConn.asPromise();
-  models = registerControlModels(controlConn);
-  return models;
+  connectPromise = (async () => {
+    controlConn = mongoose.createConnection(uri);
+    await controlConn.asPromise();
+    models = registerControlModels(controlConn);
+    return models;
+  })();
+  return connectPromise;
 }
 
 export function getControlModels() {
@@ -38,7 +46,8 @@ export function getControlConnection() {
 export async function closeControlPlane() {
   if (controlConn) {
     await controlConn.close();
-    controlConn = null;
-    models = null;
   }
+  controlConn = null;
+  models = null;
+  connectPromise = null;
 }
