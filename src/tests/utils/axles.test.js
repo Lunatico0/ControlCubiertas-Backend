@@ -35,5 +35,16 @@ describe('generatePositions — posiciones de cubiertas por ejes', () => {
     expect(generatePositions(AXLE_PRESETS.camion_4x2.axles)).toHaveLength(6);
     expect(generatePositions(AXLE_PRESETS.camion_6x4.axles)).toHaveLength(10);
     expect(generatePositions(AXLE_PRESETS.bus.axles)).toHaveLength(6);
+    expect(generatePositions(AXLE_PRESETS.moto.axles)).toHaveLength(2);
+  });
+
+  it('eje moto → 1 posición (rueda única)', () => {
+    const p = generatePositions([{ type: 'moto' }]);
+    expect(p.map((x) => x.code)).toEqual(['E1-U']);
+  });
+
+  it('moto (2 ejes de rueda única) → 2 posiciones E1-U, E2-U', () => {
+    const p = generatePositions([{ type: 'moto' }, { type: 'moto' }]);
+    expect(p.map((x) => x.code)).toEqual(['E1-U', 'E2-U']);
   });
 });

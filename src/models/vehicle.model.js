@@ -9,7 +9,7 @@ export const vehicleSchema = new mongoose.Schema({
     // cubiertas (ver utils/axles.js → generatePositions). 'simple' = 2 ruedas, 'dual' = 4.
     axles: [{
         _id: false,
-        type: { type: String, enum: ['simple', 'dual'], required: true },
+        type: { type: String, enum: ['simple', 'dual', 'moto'], required: true },
         label: { type: String },
     }],
     kilometers: { type: Number, default: 0 },

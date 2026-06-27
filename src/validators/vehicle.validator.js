@@ -10,7 +10,7 @@ export const createVehicleSchema = z.object({
   axles: z
     .array(
       z.object({
-        type: z.enum(['simple', 'dual']),
+        type: z.enum(['simple', 'dual', 'moto']),
         label: z.string().optional(),
       }),
     )

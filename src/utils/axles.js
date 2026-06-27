@@ -15,13 +15,18 @@ const DUAL_SLOTS = [
   { suffix: 'DE', side: 'R', label: 'Der ext' },
 ];
 
+// Rueda única (motos): un solo neumático centrado por eje.
+const MOTO_SLOTS = [{ suffix: 'U', side: 'C', label: 'Única' }];
+
+const SLOTS_BY_TYPE = { simple: SIMPLE_SLOTS, dual: DUAL_SLOTS, moto: MOTO_SLOTS };
+
 // axles: [{ type: 'simple'|'dual', label? }] ordenados delantero→trasero.
 // Devuelve [{ code, label, axle, side }] — los códigos son E{n}-{slot} (E1-I, E2-DE, …).
 export function generatePositions(axles = []) {
   const positions = [];
   (axles || []).forEach((axle, i) => {
     const n = i + 1;
-    const slots = axle?.type === 'dual' ? DUAL_SLOTS : SIMPLE_SLOTS;
+    const slots = SLOTS_BY_TYPE[axle?.type] || SIMPLE_SLOTS;
     const axleLabel = axle?.label || `Eje ${n}`;
     for (const s of slots) {
       positions.push({ code: `E${n}-${s.suffix}`, label: `${axleLabel} ${s.label}`, axle: n, side: s.side });
@@ -55,4 +60,5 @@ export const AXLE_PRESETS = {
   camion_6x4: { label: 'Camión 6×4',           axles: [{ type: 'simple' }, { type: 'dual' }, { type: 'dual' }] },
   semi_3:     { label: 'Semirremolque 3 ejes', axles: [{ type: 'dual' }, { type: 'dual' }, { type: 'dual' }] },
   bus:        { label: 'Colectivo / Bus',      axles: [{ type: 'simple' }, { type: 'dual' }] },
+  moto:       { label: 'Moto',                 axles: [{ type: 'moto' }, { type: 'moto' }] },
 };
