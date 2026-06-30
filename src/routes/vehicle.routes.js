@@ -3,7 +3,7 @@ import VehicleController from '../controller/vehicle.controller.js';
 import { validateVehicleExists } from '../middleware/vehicleExists.js';
 import vehicleController from '../controller/vehicle.controller.js';
 import { validate } from '../middleware/validate.js';
-import { createVehicleSchema } from '../validators/vehicle.validator.js';
+import { createVehicleSchema, updateAxlesSchema } from '../validators/vehicle.validator.js';
 
 const router = express.Router();
 
@@ -80,6 +80,28 @@ router.get('/:id', VehicleController.getById);
  *         description: Vehículo no encontrado
  */
 router.get('/:id/positions', VehicleController.getPositions);
+
+/**
+ * @swagger
+ * /api/vehicles/{id}/axles:
+ *   patch:
+ *     summary: Configurar el esquema de ejes de un vehículo existente
+ *     tags: [Vehículos]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Vehículo actualizado con su esquema de ejes
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Vehículo no encontrado
+ */
+router.patch('/:id/axles', validate(updateAxlesSchema), VehicleController.updateAxles);
 
 /**
  * @swagger

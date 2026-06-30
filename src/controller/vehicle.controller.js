@@ -43,6 +43,26 @@ class VehicleController {
     }
   }
 
+  // Configurar el esquema de ejes de un vehículo existente (migración A4: adaptar los
+  // vehículos viejos al modelo de ejes). Setea axles (+ kilometers opcional).
+  async updateAxles(req, res) {
+    try {
+      const { id } = req.params;
+      const { axles, kilometers } = req.body;
+
+      const update = { axles };
+      if (kilometers !== undefined) update.kilometers = kilometers;
+
+      const vehicle = await req.db.Vehicle.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+      if (!vehicle) return res.status(404).json({ message: 'Vehículo no encontrado' });
+
+      res.json(vehicle);
+    } catch (error) {
+      console.error('Error al configurar ejes del vehículo:', error.message);
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async create(req, res) {
     const { brand, mobile, licensePlate, type, tires, axles, kilometers } = req.body;
 
