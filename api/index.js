@@ -10,6 +10,7 @@ import { attachDb } from '../src/middleware/attachDb.js';
 import { authenticate } from '../src/middleware/auth.middleware.js';
 import authRoutes from '../src/routes/auth.routes.js';
 import adminRoutes from '../src/routes/admin.routes.js';
+import companyRoutes from '../src/routes/company.routes.js';
 import tireRoutes from '../src/routes/tire.routes.js';
 import vehicleRoutes from '../src/routes/vehicle.routes.js';
 import orderRoutes from '../src/routes/order.routes.js';
@@ -97,6 +98,7 @@ app.get('/api-docs', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/company', authenticate, companyRoutes);
 
 // ✅ Rutas de negocio: authenticate (JWT) -> attachDb (resuelve la DB del tenant)
 app.use('/api/tires', authenticate, attachDb, tireRoutes);
