@@ -1,4 +1,13 @@
 import TireService from '../services/tire.service.js';
+import { getTenantStatuses } from '../services/company.service.js';
+
+// Valida que un status pertenezca a los estados configurados del tenant (reemplaza al enum
+// fijo que se removió del modelo). Devuelve un mensaje de error o null si es válido.
+async function invalidStatus(tenantId, status) {
+  const statuses = await getTenantStatuses(tenantId);
+  const valid = new Set(statuses.map((s) => s.name));
+  return valid.has(status) ? null : `Estado "${status}" no válido para esta empresa.`;
+}
 
 class TireController {
   async getAll(req, res) {
@@ -24,6 +33,8 @@ class TireController {
 
   async create(req, res) {
     try {
+      const bad = await invalidStatus(req.auth.tenantId, req.body.status);
+      if (bad) return res.status(400).json({ message: bad });
       const tire = await TireService.createTire(req.db, req.body);
       res.status(201).json(tire);
     } catch (error) {
@@ -36,6 +47,9 @@ class TireController {
     try {
       const { id } = req.params;
       const { status, orderNumber, receiptNumber } = req.body;
+
+      const bad = await invalidStatus(req.auth.tenantId, status);
+      if (bad) return res.status(400).json({ message: bad });
 
       const result = await TireService.updateTireStatus(req.db, id, status, orderNumber, receiptNumber);
       res.status(200).json({

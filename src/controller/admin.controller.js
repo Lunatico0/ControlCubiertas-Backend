@@ -50,7 +50,7 @@ class AdminController {
 
   async summary(req, res) {
     try {
-      res.json(await getTenantSummary(req.auth.dbName));
+      res.json(await getTenantSummary(req.auth.dbName, await company.getTenantStatuses(req.auth.tenantId)));
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

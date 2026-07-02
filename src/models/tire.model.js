@@ -1,9 +1,10 @@
 import mongoose from "mongoose";
 
 export const tireSchema = new mongoose.Schema({
+  // Sin enum fijo: los estados válidos son configurables por tenant (tenant.stockStatuses).
+  // La pertenencia se valida dinámicamente en la capa de servicio (ver tire.controller).
   status: {
     type: String,
-    enum: ['Nueva', '1er Recapado', '2do Recapado', '3er Recapado', 'A recapar', 'Descartada'],
     required: true
   },
   code: { type: Number, required: true, unique: true },

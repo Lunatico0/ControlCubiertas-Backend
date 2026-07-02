@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-const STATUSES = ['Nueva', '1er Recapado', '2do Recapado', '3er Recapado', 'A recapar', 'Descartada'];
-
 export const createTireSchema = z.object({
-  status: z.enum(STATUSES),
+  // La pertenencia del estado se valida dinámicamente contra los estados del tenant
+  // (tire.controller), porque el set es configurable por empresa; acá solo la forma.
+  status: z.string().min(1),
   code: z.number(),
   brand: z.string().min(1),
   pattern: z.string().min(1),

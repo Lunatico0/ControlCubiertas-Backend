@@ -33,12 +33,13 @@ describe('Validación de input con Zod', () => {
     expect(res.body.errors).toBeDefined();
   });
 
-  it('POST /api/tires con status inválido -> 400', async () => {
+  it('POST /api/tires con status no configurado en el tenant -> 400', async () => {
     const res = await request(app).post('/api/tires').set(auth).send({
       code: 6, brand: 'B', pattern: 'P', serialNumber: 'S6', size: 'S', status: 'Inexistente',
     });
     expect(res.status).toBe(400);
-    expect(res.body.errors).toBeDefined();
+    // Ya no lo rechaza el enum de Zod, sino la validación dinámica del controller (por tenant)
+    expect(res.body.message).toMatch(/no válido/i);
   });
 
   it('POST /api/vehicles sin mobile -> 400', async () => {

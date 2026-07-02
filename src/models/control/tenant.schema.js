@@ -16,7 +16,20 @@ export const tenantSchema = new mongoose.Schema(
     // Preferencias operativas (aplican a toda la operación del tenant)
     receiptPrefix: { type: String, default: '0001' },
     receiptFooter: { type: String },
-    stockStatuses: { type: [String], default: ['Nueva', '1er Recapado', '2do Recapado'] },
+    // Estados de cubierta configurables por tenant. Rol estable (initial/stock/recap/discard)
+    // que sobrevive al renombre; el orden del array define la escalera. initial y discard
+    // son obligatorios (validado en company.service). Ver utils/statuses.js.
+    stockStatuses: {
+      type: [{ _id: false, name: String, role: { type: String, enum: ['initial', 'stock', 'recap', 'discard'], default: 'stock' } }],
+      default: [
+        { name: 'Nueva', role: 'initial' },
+        { name: '1er Recapado', role: 'stock' },
+        { name: '2do Recapado', role: 'stock' },
+        { name: '3er Recapado', role: 'stock' },
+        { name: 'A recapar', role: 'recap' },
+        { name: 'Descartada', role: 'discard' },
+      ],
+    },
 
     // Diseño del comprobante impreso (editor de comprobante). Aplica a TODA la operación
     // del tenant (no es por device). Lo edita el tenant-admin. El logo se guarda como

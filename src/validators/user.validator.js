@@ -35,6 +35,8 @@ export const updateCompanySchema = z.object({
   address: z.string().optional(),
   receiptPrefix: z.string().optional(),
   receiptFooter: z.string().optional(),
-  stockStatuses: z.array(z.string()).optional(),
+  stockStatuses: z
+    .array(z.object({ name: z.string().min(1), role: z.enum(['initial', 'stock', 'recap', 'discard']) }))
+    .optional(),
   receiptDesign: receiptDesignSchema.optional(),
 });

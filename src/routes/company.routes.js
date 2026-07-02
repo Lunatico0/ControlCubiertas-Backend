@@ -17,6 +17,7 @@ router.get('/', async (req, res) => {
       receiptPrefix: c.receiptPrefix,
       receiptFooter: c.receiptFooter,
       receiptDesign: c.receiptDesign,
+      stockStatuses: c.stockStatuses,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
