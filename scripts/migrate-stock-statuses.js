@@ -26,7 +26,9 @@ await connectControlPlane();
 
 try {
   const { Tenant } = getControlModels();
-  const tenants = await Tenant.find();
+  // lean(): leer el valor CRUDO de stockStatuses (puede ser [String] legacy) sin que
+  // Mongoose intente castearlo al schema nuevo [{name,role}] y pierda los nombres.
+  const tenants = await Tenant.find().lean();
   if (!tenants.length) console.log('No hay tenants.');
 
   for (const tenant of tenants) {
@@ -46,14 +48,17 @@ try {
       knownNames.add(name);
     }
 
+    // Orden canónico: inicial → escalera (stock, en su orden) → a recapar → baja. Sort estable.
+    const ROLE_ORDER = { initial: 0, stock: 1, recap: 2, discard: 3 };
+    statuses.sort((a, b) => (ROLE_ORDER[a.role] ?? 1) - (ROLE_ORDER[b.role] ?? 1));
+
     const changed = before !== JSON.stringify(statuses);
     console.log(`\n=== ${tenant.name} (${tenant.dbName}) ===`);
     console.log(`  estados: ${statuses.map((s) => `${s.name}[${s.role}]`).join(', ')}`);
     console.log(`  ${changed ? (dry ? 'CAMBIARÍA' : 'actualizado') : 'sin cambios'}`);
 
     if (changed && !dry) {
-      tenant.stockStatuses = statuses;
-      await tenant.save();
+      await Tenant.updateOne({ _id: tenant._id }, { $set: { stockStatuses: statuses } });
     }
   }
   console.log(`\n----------------------------------------\n=> ${dry ? 'Simulación (dry-run) completa.' : 'Migración completa.'}`);
