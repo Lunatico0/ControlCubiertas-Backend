@@ -23,7 +23,9 @@ export function inferRole(name) {
 export function normalizeStatuses(raw) {
   const arr = Array.isArray(raw) ? raw : [];
   const list = arr
-    .map((s) => (typeof s === 'string' ? { name: s, role: inferRole(s) } : { name: s?.name, role: s?.role || inferRole(s?.name) }))
+    .map((s) => (typeof s === 'string'
+      ? { name: s, role: inferRole(s) }
+      : { name: s?.name, role: s?.role || inferRole(s?.name), ...(s?.color ? { color: s.color } : {}) }))
     .filter((s) => s.name && String(s.name).trim());
 
   if (!list.some((s) => s.role === 'initial')) {

@@ -46,11 +46,11 @@ describe('company.service (config de empresa + estados configurables)', () => {
     expect(c.receiptPrefix).toBe('0002');
   });
 
-  it('updateCompany persiste stockStatuses [{name,role}] válido', async () => {
+  it('updateCompany persiste stockStatuses [{name,role,color}] válido (color opcional)', async () => {
     const statuses = [
-      { name: 'Nueva', role: 'initial' },
-      { name: '1er Recapado', role: 'stock' },
-      { name: '2do Recapado', role: 'stock' },
+      { name: 'Nueva', role: 'initial', color: 'var(--st-lime)' },
+      { name: '1er Recapado', role: 'stock', color: '#FF8800' },
+      { name: '2do Recapado', role: 'stock' }, // sin color → /op usa el automático
       { name: 'A recapar', role: 'recap' },
       { name: 'Descartada', role: 'discard' },
     ];

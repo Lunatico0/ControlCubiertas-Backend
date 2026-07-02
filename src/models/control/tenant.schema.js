@@ -20,7 +20,7 @@ export const tenantSchema = new mongoose.Schema(
     // que sobrevive al renombre; el orden del array define la escalera. initial y discard
     // son obligatorios (validado en company.service). Ver utils/statuses.js.
     stockStatuses: {
-      type: [{ _id: false, name: String, role: { type: String, enum: ['initial', 'stock', 'recap', 'discard'], default: 'stock' } }],
+      type: [{ _id: false, name: String, role: { type: String, enum: ['initial', 'stock', 'recap', 'discard'], default: 'stock' }, color: { type: String } }],
       default: [
         { name: 'Nueva', role: 'initial' },
         { name: '1er Recapado', role: 'stock' },
