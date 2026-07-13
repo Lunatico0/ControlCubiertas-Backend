@@ -15,6 +15,7 @@ router.patch('/users/:id/status', validate(setUserStatusSchema), (req, res) => A
 
 router.get('/summary', (req, res) => AdminController.summary(req, res));
 router.get('/receipts', (req, res) => AdminController.receipts(req, res));
+router.get('/reports', (req, res) => AdminController.reports(req, res));
 router.get('/company', (req, res) => AdminController.getCompany(req, res));
 router.patch('/company', validate(updateCompanySchema), (req, res) => AdminController.updateCompany(req, res));
 
