@@ -5,7 +5,7 @@ config();
 
 mongoose.set('strictPopulate', false);
 
-// Conexión perezosa: se invoca explícitamente desde el bootstrap (app.logged.js /
+// Conexión perezosa: se invoca explícitamente desde el bootstrap (server.js /
 // api/index.js) o desde los tests (apuntando a mongodb-memory-server). Importar este
 // módulo ya NO abre una conexión — eso desacopla el arranque y permite testear aislado
 // sin pegar a Atlas.

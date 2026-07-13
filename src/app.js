@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { config } from 'dotenv';
 import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
+import { connectControlPlane } from './db/controlPlane.js';
 import { attachDb } from './middleware/attachDb.js';
 import { authenticate } from './middleware/auth.middleware.js';
 import authRoutes from './routes/auth.routes.js';
@@ -31,6 +32,19 @@ app.get('/api-docs', swaggerUi.setup(specs, swaggerUiOptions));
 app.get('/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(specs);
+});
+
+// Garantiza el control plane conectado ANTES de procesar la request. Idempotente
+// (instantáneo si ya conectó). Necesario en serverless: el connectControlPlane() del cold
+// start es async y no esperado → sin esto, las primeras requests al control plane fallan.
+// En tests/local sin CONTROL_PLANE_URI es un no-op (los tests conectan por su cuenta).
+app.use(async (req, res, next) => {
+  try {
+    if (process.env.CONTROL_PLANE_URI) await connectControlPlane();
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Auth (control plane) — público, no opera sobre la DB del tenant.
@@ -88,6 +102,7 @@ app.use('*', (req, res) => {
 });
 
 // app.js exporta una factory pura del app Express (sin side-effects de conexión ni
-// listen), para poder importarlo en tests con supertest. El arranque real (conectar +
-// listen) vive en app.logged.js (local) y api/index.js (serverless).
+// listen), para poder importarlo en tests con supertest. Es la ÚNICA definición de rutas
+// y middleware. El arranque real (conectar + listen) vive en server.js (local) y
+// api/index.js (serverless) — ambos importan este app; NUNCA se montan rutas fuera de acá.
 export default app;
