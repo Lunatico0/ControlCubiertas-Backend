@@ -5,12 +5,41 @@ import { generatePositions } from '../utils/axles.js';
 // globalmente. Esto habilita DB-per-tenant: el mismo service opera sobre la conexión del
 // tenant que resuelva el middleware. La conexión NUNCA se guarda como estado del singleton.
 class TireService {
-  async getAll(db) {
-    const populatedTires = await db.Tire.find().populate('vehicle')
-    if (!populatedTires || populatedTires.length === 0) {
+  async getAll(db, statuses = []) {
+    const tires = await db.Tire.find().populate('vehicle').lean();
+    if (!tires || tires.length === 0) {
       throw new Error('No se encontraron cubiertas');
     }
-    return populatedTires;
+
+    // Escalera de recapado: nombre → nivel (Nueva=0, 1er=1, 2do=2, ...). Solo cuentan los
+    // roles de escalera (initial/stock); recap y discard no son un recapado en sí.
+    const levelOf = {};
+    let idx = 0;
+    for (const s of statuses) {
+      if (s?.role === 'initial' || s?.role === 'stock') levelOf[s.name] = idx++;
+    }
+
+    // Para las cubiertas fuera de la escalera (A recapar / Descartada) el status actual no
+    // dice con qué recapado salieron: se toma el máximo nivel de escalera visto en su historial.
+    const ladderNames = Object.keys(levelOf);
+    const maxLevel = {};
+    if (ladderNames.length) {
+      const entries = await db.History
+        .find({ status: { $in: ladderNames } })
+        .select('tire status')
+        .lean();
+      for (const h of entries) {
+        const lvl = levelOf[h.status];
+        const key = String(h.tire);
+        if (lvl > (maxLevel[key] ?? -1)) maxLevel[key] = lvl;
+      }
+    }
+
+    return tires.map((t) => {
+      const current = levelOf[t.status]; // definido si el status actual está en la escalera
+      const recapLevel = current ?? maxLevel[String(t._id)] ?? 0;
+      return { ...t, recapLevel };
+    });
   }
 
   async getById(db, id) {

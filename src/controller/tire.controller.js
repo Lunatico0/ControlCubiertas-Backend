@@ -12,7 +12,8 @@ async function invalidStatus(tenantId, status) {
 class TireController {
   async getAll(req, res) {
     try {
-      const tires = await TireService.getAll(req.db);
+      const statuses = await getTenantStatuses(req.auth.tenantId);
+      const tires = await TireService.getAll(req.db, statuses);
       res.json(tires);
     } catch (error) {
       console.error('Error en getAll:', error);
