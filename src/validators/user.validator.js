@@ -11,7 +11,9 @@ export const setUserStatusSchema = z.object({
 });
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1),
+  // Opcional a nivel schema: en el PRIMER INGRESO (mustChangePassword) no se re-pide la
+  // actual. La obligatoriedad para el cambio voluntario la valida auth.service según el flag.
+  currentPassword: z.string().optional(),
   newPassword: z.string().min(6),
 });
 

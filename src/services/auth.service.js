@@ -55,14 +55,19 @@ export async function login({ User, Tenant }, email, password) {
   };
 }
 
-// Cambio de contraseña (también cubre el "primer ingreso": el usuario llega con la
-// password temporal como currentPassword y al cambiarla se baja mustChangePassword).
+// Cambio de contraseña. Dos flujos:
+//  - PRIMER INGRESO (mustChangePassword): el usuario ya se autenticó con la temporal → no
+//    se le re-pide la actual; solo define la nueva.
+//  - VOLUNTARIO: exige la contraseña actual y la verifica (seguridad).
 export async function changePassword({ User }, userId, currentPassword, newPassword) {
   const user = await User.findById(userId);
   if (!user) throw new Error('Usuario no encontrado');
 
-  const ok = await verifyPassword(currentPassword, user.passwordHash);
-  if (!ok) throw new Error('La contraseña actual es incorrecta');
+  if (!user.mustChangePassword) {
+    if (!currentPassword) throw new Error('Ingresá tu contraseña actual');
+    const ok = await verifyPassword(currentPassword, user.passwordHash);
+    if (!ok) throw new Error('La contraseña actual es incorrecta');
+  }
 
   user.passwordHash = await hashPassword(newPassword);
   user.mustChangePassword = false;
