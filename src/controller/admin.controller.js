@@ -34,6 +34,15 @@ class AdminController {
     }
   }
 
+  async resetPassword(req, res) {
+    try {
+      const result = await userAdmin.resetPassword(req.auth.tenantId, req.params.id);
+      res.json(result); // { user, tempPassword } — la temporal se muestra UNA vez
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async getCompany(req, res) {
     try {
       res.json(await company.getCompany(req.auth.tenantId));

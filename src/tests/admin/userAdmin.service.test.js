@@ -1,7 +1,7 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { connectControlPlane, getControlModels, closeControlPlane } from '../../db/controlPlane.js';
-import { listUsers, createUser, setUserStatus } from '../../services/userAdmin.service.js';
-import { hashPassword } from '../../services/auth.service.js';
+import { listUsers, createUser, setUserStatus, resetPassword } from '../../services/userAdmin.service.js';
+import { hashPassword, verifyPassword } from '../../services/auth.service.js';
 
 describe('userAdmin.service (gestión de usuarios del tenant)', () => {
   let mongod;
@@ -58,5 +58,23 @@ describe('userAdmin.service (gestión de usuarios del tenant)', () => {
   it('no permite tocar un usuario de otro tenant (scope)', async () => {
     const opB = (await listUsers(tenantB._id))[0];
     await expect(setUserStatus(tenantA._id, opB._id, 'inactive')).rejects.toThrow();
+  });
+
+  it('resetPassword genera una temporal nueva, setea mustChangePassword=true y la deja usable', async () => {
+    const { User } = getControlModels();
+    const op = (await listUsers(tenantA._id)).find((u) => u.role === 'operator');
+    const { user, tempPassword } = await resetPassword(tenantA._id, op._id);
+    expect(tempPassword).toBeTruthy();
+    expect(user._id.toString()).toBe(op._id.toString());
+    expect(user.mustChangePassword).toBe(true);
+    expect(user.passwordHash).toBeUndefined(); // no se filtra el hash
+    // la temporal efectivamente aplica sobre el usuario
+    const raw = await User.findById(op._id);
+    expect(await verifyPassword(tempPassword, raw.passwordHash)).toBe(true);
+  });
+
+  it('resetPassword no toca un usuario de otro tenant (scope)', async () => {
+    const opB = (await listUsers(tenantB._id))[0];
+    await expect(resetPassword(tenantA._id, opB._id)).rejects.toThrow();
   });
 });

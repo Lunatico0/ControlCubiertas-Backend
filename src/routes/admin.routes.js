@@ -12,6 +12,7 @@ router.use(authenticate, requireRole('tenant-admin'));
 router.get('/users', (req, res) => AdminController.listUsers(req, res));
 router.post('/users', validate(createUserSchema), (req, res) => AdminController.createUser(req, res));
 router.patch('/users/:id/status', validate(setUserStatusSchema), (req, res) => AdminController.setUserStatus(req, res));
+router.post('/users/:id/reset-password', (req, res) => AdminController.resetPassword(req, res));
 
 router.get('/summary', (req, res) => AdminController.summary(req, res));
 router.get('/receipts', (req, res) => AdminController.receipts(req, res));

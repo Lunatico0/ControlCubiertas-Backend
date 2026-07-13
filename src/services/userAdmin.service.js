@@ -45,3 +45,21 @@ export async function setUserStatus(tenantId, userId, status) {
   await user.save();
   return User.findById(user._id).select(PUBLIC);
 }
+
+// Reset de contraseña por el admin: cuando un operario pierde su password, el admin le
+// genera una temporal (misma mecánica que el alta) y fuerza el cambio en el próximo
+// ingreso (mustChangePassword=true → RequireAuth manda a /cambiar-password). Scopeado al
+// tenant: no se puede resetear un usuario de otra empresa.
+export async function resetPassword(tenantId, userId) {
+  const { User } = getControlModels();
+  const user = await User.findOne({ _id: userId, tenantId });
+  if (!user) throw new Error('Usuario no encontrado');
+
+  const tempPassword = crypto.randomBytes(6).toString('hex');
+  user.passwordHash = await hashPassword(tempPassword);
+  user.mustChangePassword = true;
+  await user.save();
+
+  const safe = await User.findById(user._id).select(PUBLIC);
+  return { user: safe, tempPassword };
+}
