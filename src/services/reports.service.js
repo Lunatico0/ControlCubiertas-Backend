@@ -179,3 +179,72 @@ export async function getVehicleReports(dbName, statuses = []) {
 
   return { vehicles: rows };
 }
+
+// Desgaste POR POSICIÓN de un camión: km acumulado en cada posición del eje a lo largo de la
+// ventana. Se pairea cada Asignación (que ahora guarda la posición) con su Desasignación (km),
+// atribuyendo el km del período a esa posición del vehículo. La cubierta montada actual de cada
+// posición se toma del estado vigente (para la etiqueta de recapado). Alimenta el mapa de calor
+// "vista superior" del camión: deja ver si una posición o un eje entero desgasta más rápido.
+export async function getVehicleWear(dbName, vehicleId, statuses = []) {
+  const { Vehicle, History, Tire } = getTenantDb(dbName).models;
+  const vehicle = await Vehicle.findById(vehicleId).select('mobile licensePlate brand axles').lean();
+  if (!vehicle) throw new Error('Vehículo no encontrado');
+
+  const levelOf = {};
+  let lvl = 0;
+  for (const s of statuses) if (s?.role === 'initial' || s?.role === 'stock') levelOf[s.name] = lvl++;
+
+  // km por posición: pareo asignación(posición)→desasignación(km) por cubierta, en orden.
+  const moves = await History.find({ type: { $in: ['Asignación', 'Desasignación'] } })
+    .select('tire type vehicle position kmAlta kmBaja km date')
+    .sort({ tire: 1, date: 1 })
+    .lean();
+  const posKm = {};
+  let open = null;
+  let currentTire = null;
+  for (const m of moves) {
+    const tireKey = String(m.tire);
+    if (tireKey !== currentTire) { open = null; currentTire = tireKey; }
+    if (m.type === 'Asignación') {
+      open = { vehicle: m.vehicle ? String(m.vehicle) : null, position: m.position || null };
+    } else if (m.type === 'Desasignación') {
+      if (open && open.vehicle === String(vehicleId) && open.position) {
+        const km = m.km != null ? m.km : Math.max(0, (m.kmBaja || 0) - (m.kmAlta || 0));
+        posKm[open.position] = (posKm[open.position] || 0) + km;
+      }
+      open = null;
+    }
+  }
+
+  // Cubierta montada AHORA en cada posición (etiqueta de recapado).
+  const mounted = await Tire.find({ vehicle: vehicleId, position: { $ne: null } }).select('position code brand status kilometers').lean();
+  const currentByPos = {};
+  for (const t of mounted) {
+    currentByPos[t.position] = { code: t.code, brand: t.brand, status: t.status, role: roleOf(statuses, t.status), level: levelOf[t.status] ?? null, km: t.kilometers || 0 };
+  }
+
+  const positions = generatePositions(vehicle.axles || []).map((p) => ({
+    code: p.code,
+    axle: p.axle,
+    side: p.side,
+    km: round(posKm[p.code] || 0),
+    current: currentByPos[p.code] || null,
+  }));
+  const maxPosKm = positions.reduce((mx, p) => Math.max(mx, p.km), 0);
+
+  const axleMap = new Map();
+  for (const p of positions) {
+    if (!axleMap.has(p.axle)) axleMap.set(p.axle, { axle: p.axle, km: 0, count: 0 });
+    const a = axleMap.get(p.axle);
+    a.km += p.km;
+    a.count += 1;
+  }
+  const axles = [...axleMap.values()].sort((a, b) => a.axle - b.axle);
+
+  return {
+    vehicle: { id: String(vehicle._id), mobile: vehicle.mobile, licensePlate: vehicle.licensePlate, brand: vehicle.brand },
+    positions,
+    axles,
+    maxPosKm: round(maxPosKm),
+  };
+}

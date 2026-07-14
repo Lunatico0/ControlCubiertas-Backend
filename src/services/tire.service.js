@@ -141,6 +141,7 @@ class TireService {
       type: 'Asignación',
       vehicle: vehicleId,
       status: tire.status,
+      position: position || null,
       kmAlta,
       orderNumber: orderNumber || null,
       receiptNumber

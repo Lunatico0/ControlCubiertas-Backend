@@ -23,6 +23,9 @@ export const historySchema = new mongoose.Schema({
   kmBaja: Number,
   km: Number,
   status: { type: String },
+  // Posición del eje donde se montó la cubierta (código de slot: E1-I, E2-DE, …). Se guarda en
+  // la Asignación para poder medir el desgaste acumulado POR POSICIÓN a lo largo del tiempo.
+  position: { type: String, default: null },
   vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' },
   type: { type: String, enum: historyTypes, required: true },
   orderNumber: { type: String },

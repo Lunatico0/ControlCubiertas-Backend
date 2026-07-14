@@ -18,6 +18,7 @@ router.get('/summary', (req, res) => AdminController.summary(req, res));
 router.get('/receipts', (req, res) => AdminController.receipts(req, res));
 router.get('/reports', (req, res) => AdminController.reports(req, res));
 router.get('/reports/vehicles', (req, res) => AdminController.vehicleReports(req, res));
+router.get('/reports/vehicles/:id/wear', (req, res) => AdminController.vehicleWear(req, res));
 router.get('/company', (req, res) => AdminController.getCompany(req, res));
 router.patch('/company', validate(updateCompanySchema), (req, res) => AdminController.updateCompany(req, res));
 

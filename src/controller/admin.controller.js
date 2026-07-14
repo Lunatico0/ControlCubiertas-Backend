@@ -2,7 +2,7 @@ import * as userAdmin from '../services/userAdmin.service.js';
 import * as company from '../services/company.service.js';
 import { getTenantSummary } from '../services/stats.service.js';
 import { getTenantReceipts } from '../services/receipts.service.js';
-import { getTenantReports, getVehicleReports } from '../services/reports.service.js';
+import { getTenantReports, getVehicleReports, getVehicleWear } from '../services/reports.service.js';
 
 // Panel de administración (tenant-admin). Opera sobre el CONTROL PLANE; el tenant
 // se toma SIEMPRE de req.auth.tenantId (nunca del body), así un admin no puede
@@ -86,6 +86,14 @@ class AdminController {
   async vehicleReports(req, res) {
     try {
       res.json(await getVehicleReports(req.auth.dbName, await company.getTenantStatuses(req.auth.tenantId)));
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async vehicleWear(req, res) {
+    try {
+      res.json(await getVehicleWear(req.auth.dbName, req.params.id, await company.getTenantStatuses(req.auth.tenantId)));
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
