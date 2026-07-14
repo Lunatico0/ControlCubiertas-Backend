@@ -87,3 +87,74 @@ export async function getTenantReports(dbName, statuses, { range } = {}) {
 
   return { total, fleetLife, discardRate, leader, brands, stages };
 }
+
+// Desgaste de cubiertas por vehículo: cuánto km "gastó" cada móvil en cubiertas y cada cuánto
+// las rota. El km del período vive en la Desasignación (campo km) pero con vehicle:null, así que
+// se atribuye pareando cada Asignación (que sí trae el vehículo) con su Desasignación siguiente,
+// recorriendo el historial por cubierta y en orden. La posición del eje NO se persiste en el
+// historial hoy, por eso el corte por posición queda para cuando se registre en la asignación.
+export async function getVehicleReports(dbName) {
+  const { Vehicle, History, Tire } = getTenantDb(dbName).models;
+
+  const vehicles = await Vehicle.find().select('mobile licensePlate brand').lean();
+  if (!vehicles.length) return { vehicles: [] };
+
+  const moves = await History.find({ type: { $in: ['Asignación', 'Desasignación'] } })
+    .select('tire type vehicle kmAlta kmBaja km date')
+    .sort({ tire: 1, date: 1 })
+    .lean();
+
+  const acc = new Map(); // vehId → { kmTotal, stints, tires:Set(tireId) }
+  const ensure = (id) => {
+    const k = String(id);
+    if (!acc.has(k)) acc.set(k, { kmTotal: 0, stints: 0, tires: new Set() });
+    return acc.get(k);
+  };
+
+  // Recorre por cubierta manteniendo el período abierto (última Asignación con su vehículo).
+  let open = null;
+  let currentTire = null;
+  for (const m of moves) {
+    const tireKey = String(m.tire);
+    if (tireKey !== currentTire) { open = null; currentTire = tireKey; }
+    if (m.type === 'Asignación') {
+      open = { vehicle: m.vehicle, kmAlta: m.kmAlta || 0 };
+      if (m.vehicle) ensure(m.vehicle).tires.add(tireKey);
+    } else if (m.type === 'Desasignación') {
+      if (open?.vehicle) {
+        const km = m.km != null ? m.km : Math.max(0, (m.kmBaja || 0) - open.kmAlta);
+        const a = ensure(open.vehicle);
+        a.kmTotal += km;
+        a.stints += 1;
+      }
+      open = null;
+    }
+  }
+
+  // Cubiertas actualmente montadas por vehículo (período abierto, todavía sin sumar km).
+  const mounted = await Tire.find({ vehicle: { $ne: null } }).select('vehicle').lean();
+  const mountedByVeh = new Map();
+  for (const t of mounted) {
+    const k = String(t.vehicle);
+    mountedByVeh.set(k, (mountedByVeh.get(k) || 0) + 1);
+  }
+
+  const rows = vehicles
+    .map((v) => {
+      const a = acc.get(String(v._id)) || { kmTotal: 0, stints: 0, tires: new Set() };
+      return {
+        id: String(v._id),
+        mobile: v.mobile,
+        licensePlate: v.licensePlate,
+        brand: v.brand,
+        tires: a.tires.size,
+        stints: a.stints,
+        kmTotal: round(a.kmTotal),
+        avgKmPerStint: a.stints ? round(a.kmTotal / a.stints) : 0,
+        mounted: mountedByVeh.get(String(v._id)) || 0,
+      };
+    })
+    .sort((x, y) => y.kmTotal - x.kmTotal);
+
+  return { vehicles: rows };
+}
