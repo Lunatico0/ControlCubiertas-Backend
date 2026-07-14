@@ -85,7 +85,7 @@ class AdminController {
 
   async vehicleReports(req, res) {
     try {
-      res.json(await getVehicleReports(req.auth.dbName));
+      res.json(await getVehicleReports(req.auth.dbName, await company.getTenantStatuses(req.auth.tenantId)));
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

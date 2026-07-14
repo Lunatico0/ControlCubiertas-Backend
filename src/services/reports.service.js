@@ -1,5 +1,6 @@
 import { getTenantDb } from '../db/tenantConnections.js';
 import { roleOf } from '../utils/statuses.js';
+import { generatePositions } from '../utils/axles.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -91,13 +92,18 @@ export async function getTenantReports(dbName, statuses, { range } = {}) {
 // Desgaste de cubiertas por vehículo: cuánto km "gastó" cada móvil en cubiertas y cada cuánto
 // las rota. El km del período vive en la Desasignación (campo km) pero con vehicle:null, así que
 // se atribuye pareando cada Asignación (que sí trae el vehículo) con su Desasignación siguiente,
-// recorriendo el historial por cubierta y en orden. La posición del eje NO se persiste en el
-// historial hoy, por eso el corte por posición queda para cuando se registre en la asignación.
-export async function getVehicleReports(dbName) {
+// recorriendo el historial por cubierta y en orden. Además arma el esquema de ejes de cada
+// camión (positions) con la cubierta montada en cada posición, para el corte "por camión".
+export async function getVehicleReports(dbName, statuses = []) {
   const { Vehicle, History, Tire } = getTenantDb(dbName).models;
 
-  const vehicles = await Vehicle.find().select('mobile licensePlate brand').lean();
+  const vehicles = await Vehicle.find().select('mobile licensePlate brand axles').lean();
   if (!vehicles.length) return { vehicles: [] };
+
+  // Nivel en la escalera (Nueva=0, 1er=1, ...) para colorear cada posición por su recapado.
+  const levelOf = {};
+  let lvl = 0;
+  for (const s of statuses) if (s?.role === 'initial' || s?.role === 'stock') levelOf[s.name] = lvl++;
 
   const moves = await History.find({ type: { $in: ['Asignación', 'Desasignación'] } })
     .select('tire type vehicle kmAlta kmBaja km date')
@@ -131,17 +137,30 @@ export async function getVehicleReports(dbName) {
     }
   }
 
-  // Cubiertas actualmente montadas por vehículo (período abierto, todavía sin sumar km).
-  const mounted = await Tire.find({ vehicle: { $ne: null } }).select('vehicle').lean();
+  // Cubiertas actualmente montadas, indexadas por vehículo y por posición (para el esquema de ejes).
+  const mounted = await Tire.find({ vehicle: { $ne: null } }).select('vehicle position code brand status kilometers').lean();
   const mountedByVeh = new Map();
   for (const t of mounted) {
     const k = String(t.vehicle);
-    mountedByVeh.set(k, (mountedByVeh.get(k) || 0) + 1);
+    if (!mountedByVeh.has(k)) mountedByVeh.set(k, { count: 0, byPos: {} });
+    const e = mountedByVeh.get(k);
+    e.count += 1;
+    if (t.position) e.byPos[t.position] = t;
   }
 
   const rows = vehicles
     .map((v) => {
       const a = acc.get(String(v._id)) || { kmTotal: 0, stints: 0, tires: new Set() };
+      const m = mountedByVeh.get(String(v._id)) || { count: 0, byPos: {} };
+      // Esquema de ejes del camión: cada posición con su cubierta montada (o null) y su desgaste.
+      const positions = generatePositions(v.axles || []).map((p) => {
+        const t = m.byPos[p.code];
+        return {
+          code: p.code,
+          axle: p.axle,
+          tire: t ? { code: t.code, brand: t.brand, status: t.status, role: roleOf(statuses, t.status), level: levelOf[t.status] ?? null, km: t.kilometers || 0 } : null,
+        };
+      });
       return {
         id: String(v._id),
         mobile: v.mobile,
@@ -151,7 +170,9 @@ export async function getVehicleReports(dbName) {
         stints: a.stints,
         kmTotal: round(a.kmTotal),
         avgKmPerStint: a.stints ? round(a.kmTotal / a.stints) : 0,
-        mounted: mountedByVeh.get(String(v._id)) || 0,
+        mounted: m.count,
+        hasAxles: positions.length > 0,
+        positions,
       };
     })
     .sort((x, y) => y.kmTotal - x.kmTotal);

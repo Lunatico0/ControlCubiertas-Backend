@@ -11,8 +11,15 @@ describe('getVehicleReports (desgaste de cubiertas por vehículo)', () => {
   let seq = 700;
   let d = 0;
 
-  const mkVehicle = (mobile) =>
-    db.Vehicle.create({ brand: 'Scania', mobile, licensePlate: `P${++seq}`, axles: [] });
+  const statuses = [
+    { name: 'Nueva', role: 'initial' },
+    { name: '1er Recapado', role: 'stock' },
+    { name: 'A recapar', role: 'recap' },
+    { name: 'Descartada', role: 'discard' },
+  ];
+
+  const mkVehicle = (mobile, axles = []) =>
+    db.Vehicle.create({ brand: 'Scania', mobile, licensePlate: `P${++seq}`, axles });
   const mkTire = () =>
     db.Tire.create({ status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S', serialNumber: `SN${seq}` });
   const asignar = (tire, vehicle, kmAlta) =>
@@ -41,6 +48,11 @@ describe('getVehicleReports (desgaste de cubiertas por vehículo)', () => {
     // Cubierta C: montada en V2, todavía sin bajar (período abierto, no suma km aún).
     c.vehicle = v2._id; await c.save();
     await asignar(c, v2, 0);
+
+    // V3 con ejes: una cubierta montada en la posición E1-I (para el esquema de ejes).
+    const v3 = await mkVehicle('Movil 03', [{ type: 'simple' }]);
+    const dTire = await mkTire();
+    dTire.vehicle = v3._id; dTire.position = 'E1-I'; dTire.status = '1er Recapado'; await dTire.save();
   });
 
   afterAll(async () => {
@@ -68,7 +80,17 @@ describe('getVehicleReports (desgaste de cubiertas por vehículo)', () => {
 
   it('ordena por km total DESC', async () => {
     const rep = await getVehicleReports('tenant_vehicle_reports');
-    expect(rep.vehicles.map((v) => v.mobile)).toEqual(['Movil 01', 'Movil 02']);
+    expect(rep.vehicles.map((v) => v.mobile)).toEqual(['Movil 01', 'Movil 02', 'Movil 03']);
+  });
+
+  it('arma el esquema de ejes por camión con la cubierta montada en su posición', async () => {
+    const rep = await getVehicleReports('tenant_vehicle_reports', statuses);
+    const m3 = byMobile(rep, 'Movil 03');
+    expect(m3.hasAxles).toBe(true);
+    expect(m3.positions.map((p) => p.code)).toEqual(['E1-I', 'E1-D']);
+    const e1i = m3.positions.find((p) => p.code === 'E1-I');
+    expect(e1i.tire).toMatchObject({ status: '1er Recapado', role: 'stock', level: 1 });
+    expect(m3.positions.find((p) => p.code === 'E1-D').tire).toBeNull();
   });
 
   it('tenant sin datos: lista vacía', async () => {
