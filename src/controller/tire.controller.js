@@ -1,5 +1,6 @@
 import TireService from '../services/tire.service.js';
 import { getTenantStatuses } from '../services/company.service.js';
+import { roleOf } from '../utils/statuses.js';
 
 // Valida que un status pertenezca a los estados configurados del tenant (reemplaza al enum
 // fijo que se removió del modelo). Devuelve un mensaje de error o null si es válido.
@@ -70,6 +71,14 @@ class TireController {
 
       if (typeof kmAlta !== 'number') {
         return res.status(400).json({ message: 'Kilómetros de alta (kmAlta) requeridos.' });
+      }
+
+      // Guard: una cubierta con rol 'recap' ("A recapar") NO se puede asignar; hay que recaparla
+      // primero. El rol se resuelve de los estados configurados del tenant (req.tire lo trae
+      // validateTireExists). Fuente de verdad: no depende de que la UI oculte el botón.
+      const statuses = await getTenantStatuses(req.auth.tenantId);
+      if (roleOf(statuses, req.tire.status) === 'recap') {
+        return res.status(409).json({ message: 'La cubierta está "A recapar": recapala antes de asignarla a un vehículo.' });
       }
 
       const tire = await TireService.assignVehicle(req.db, id, vehicle, kmAlta, orderNumber, receiptNumber, position);
