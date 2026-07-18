@@ -53,12 +53,14 @@ class VehicleController {
       const vehicle = await req.db.Vehicle.findById(id);
       if (!vehicle) return res.status(404).json({ message: 'Vehículo no encontrado' });
 
-      // Guard duro: no reconfigurar si alguna cubierta montada perdería su posición. Se
+      // Guard duro: no RECONFIGURAR si alguna cubierta montada perdería su posición. Se
       // comparan las posiciones ocupadas (tire.position, ej. E2-DE) contra las que genera el
       // layout nuevo; si alguna desaparece → 409 (hay que desasignarla primero). Una cubierta
       // montada SIN posición (modelo viejo) también bloquea: no se puede verificar el eje.
+      // Solo aplica si el vehículo YA tiene ejes: en la PRIMERA configuración (axles vacío,
+      // migración) no hay posiciones que orfanar aunque haya cubiertas montadas.
       const mounted = await req.db.Tire.find({ vehicle: id });
-      if (mounted.length) {
+      if (vehicle.axles?.length && mounted.length) {
         const newCodes = new Set(generatePositions(axles).map((p) => p.code));
         const conflicts = mounted.filter((t) => !t.position || !newCodes.has(t.position));
         if (conflicts.length) {
