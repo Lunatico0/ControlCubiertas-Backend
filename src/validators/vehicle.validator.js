@@ -17,8 +17,16 @@ export const createVehicleSchema = z.object({
   tires: z.array(z.string()).optional().default([]),
 });
 
-// Configurar/actualizar el esquema de ejes de un vehículo existente (migración A4).
+// Configurar/actualizar el esquema de ejes de un vehículo existente. `type` = nombre del
+// tipo de vehículo derivado del layout de ejes (preset o custom del tenant).
 export const updateAxlesSchema = z.object({
   axles: z.array(axleItemSchema).default([]),
   kilometers: z.number().nonnegative().optional(),
+  type: z.string().nullish(),
+});
+
+// Tipo de vehículo custom del tenant: nombre + layout de ejes (array de strings).
+export const createVehicleTypeSchema = z.object({
+  name: z.string().min(1),
+  axles: z.array(z.enum(['simple', 'dual', 'moto'])).min(1),
 });

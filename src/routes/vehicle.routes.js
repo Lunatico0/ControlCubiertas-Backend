@@ -3,7 +3,7 @@ import VehicleController from '../controller/vehicle.controller.js';
 import { validateVehicleExists } from '../middleware/vehicleExists.js';
 import vehicleController from '../controller/vehicle.controller.js';
 import { validate } from '../middleware/validate.js';
-import { createVehicleSchema, updateAxlesSchema } from '../validators/vehicle.validator.js';
+import { createVehicleSchema, updateAxlesSchema, createVehicleTypeSchema } from '../validators/vehicle.validator.js';
 
 const router = express.Router();
 
@@ -30,6 +30,11 @@ const router = express.Router();
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/', VehicleController.getAll);
+
+// Tipos de vehículo custom del tenant. DEBEN declararse ANTES de GET '/:id' (sino
+// '/types' es capturado como :id="types").
+router.get('/types', VehicleController.listVehicleTypes);
+router.post('/types', validate(createVehicleTypeSchema), VehicleController.createVehicleType);
 
 /**
  * @swagger

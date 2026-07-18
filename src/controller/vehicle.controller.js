@@ -1,5 +1,5 @@
 import { addHistoryEntry } from '../utils/utils.js';
-import { buildVehiclePositions } from '../utils/axles.js';
+import { buildVehiclePositions, generatePositions } from '../utils/axles.js';
 
 // Modelos vía req.db (inyectado por attachDb). El historial vive en la colección History
 // (no en el doc Tire): por eso usamos addHistoryEntry y NO tire.history.push (Bug 5 resuelto).
@@ -48,17 +48,61 @@ class VehicleController {
   async updateAxles(req, res) {
     try {
       const { id } = req.params;
-      const { axles, kilometers } = req.body;
+      const { axles, kilometers, type } = req.body;
 
-      const update = { axles };
-      if (kilometers !== undefined) update.kilometers = kilometers;
-
-      const vehicle = await req.db.Vehicle.findByIdAndUpdate(id, update, { new: true, runValidators: true });
+      const vehicle = await req.db.Vehicle.findById(id);
       if (!vehicle) return res.status(404).json({ message: 'Vehículo no encontrado' });
+
+      // Guard duro: no reconfigurar si alguna cubierta montada perdería su posición. Se
+      // comparan las posiciones ocupadas (tire.position, ej. E2-DE) contra las que genera el
+      // layout nuevo; si alguna desaparece → 409 (hay que desasignarla primero). Una cubierta
+      // montada SIN posición (modelo viejo) también bloquea: no se puede verificar el eje.
+      const mounted = await req.db.Tire.find({ vehicle: id });
+      if (mounted.length) {
+        const newCodes = new Set(generatePositions(axles).map((p) => p.code));
+        const conflicts = mounted.filter((t) => !t.position || !newCodes.has(t.position));
+        if (conflicts.length) {
+          return res.status(409).json({
+            message: 'Desasigná las cubiertas montadas antes de reconfigurar los ejes.',
+            positions: conflicts.map((t) => t.position).filter(Boolean),
+          });
+        }
+      }
+
+      vehicle.axles = axles;
+      if (kilometers !== undefined) vehicle.kilometers = kilometers;
+      if (type !== undefined) vehicle.type = type;
+      await vehicle.save();
 
       res.json(vehicle);
     } catch (error) {
       console.error('Error al configurar ejes del vehículo:', error.message);
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  // Tipos de vehículo custom del tenant (data-plane). Los presets viven en el front; acá
+  // solo los que el usuario guarda. Nombre único (validado en código, no por índice).
+  async listVehicleTypes(req, res) {
+    try {
+      const types = await req.db.VehicleType.find().sort({ name: 1 });
+      res.json(types);
+    } catch (error) {
+      console.error('Error al listar tipos de vehículo:', error.message);
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async createVehicleType(req, res) {
+    try {
+      const name = (req.body.name || '').trim();
+      const { axles } = req.body;
+      const exists = await req.db.VehicleType.findOne({ name });
+      if (exists) return res.status(409).json({ message: `Ya existe un tipo de vehículo llamado "${name}"` });
+      const vt = await req.db.VehicleType.create({ name, axles });
+      res.status(201).json(vt);
+    } catch (error) {
+      console.error('Error al crear tipo de vehículo:', error.message);
       res.status(400).json({ message: error.message });
     }
   }

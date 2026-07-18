@@ -7,6 +7,7 @@ import { tireSchema } from '../models/tire.model.js';
 import { vehicleSchema } from '../models/vehicle.model.js';
 import { historySchema } from '../models/history.model.js';
 import { receiptCounterSchema } from '../models/receiptCounter.model.js';
+import { vehicleTypeSchema } from '../models/vehicleType.model.js';
 
 export function registerModels(conn) {
   return {
@@ -15,5 +16,7 @@ export function registerModels(conn) {
     History: conn.models.History || conn.model('History', historySchema),
     ReceiptCounter:
       conn.models.ReceiptCounter || conn.model('ReceiptCounter', receiptCounterSchema),
+    // Tipos de vehículo custom del tenant (sin refs cruzadas → no afecta los populate).
+    VehicleType: conn.models.VehicleType || conn.model('VehicleType', vehicleTypeSchema),
   };
 }
