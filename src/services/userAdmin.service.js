@@ -46,6 +46,24 @@ export async function setUserStatus(tenantId, userId, status) {
   return User.findById(user._id).select(PUBLIC);
 }
 
+// Edición de usuario por el admin: actualiza name y/o role. El email NO se edita (es el
+// identificador). Scopeado al tenant. GUARD anti-lockout: un tenant-admin no puede quitarse
+// a sí mismo el rol de admin (selfUserId === userId), para no quedar sin acceso al panel.
+export async function updateUser(tenantId, selfUserId, userId, { name, role }) {
+  const { User } = getControlModels();
+  const user = await User.findOne({ _id: userId, tenantId });
+  if (!user) throw new Error('Usuario no encontrado');
+
+  if (role && role !== 'tenant-admin' && user.role === 'tenant-admin' && String(userId) === String(selfUserId)) {
+    throw new Error('No podés quitarte a vos mismo el rol de administrador');
+  }
+
+  if (name !== undefined) user.name = name;
+  if (role !== undefined) user.role = role;
+  await user.save();
+  return User.findById(user._id).select(PUBLIC);
+}
+
 // Reset de contraseña por el admin: cuando un operario pierde su password, el admin le
 // genera una temporal (misma mecánica que el alta) y fuerza el cambio en el próximo
 // ingreso (mustChangePassword=true → RequireAuth manda a /cambiar-password). Scopeado al

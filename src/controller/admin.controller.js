@@ -25,6 +25,15 @@ class AdminController {
     }
   }
 
+  async updateUser(req, res) {
+    try {
+      const user = await userAdmin.updateUser(req.auth.tenantId, req.auth.userId, req.params.id, req.body);
+      res.json(user);
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async setUserStatus(req, res) {
     try {
       const user = await userAdmin.setUserStatus(req.auth.tenantId, req.params.id, req.body.status);

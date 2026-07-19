@@ -10,6 +10,15 @@ export const setUserStatusSchema = z.object({
   status: z.enum(['active', 'inactive']),
 });
 
+export const updateUserSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    role: z.enum(['operator', 'tenant-admin']).optional(),
+  })
+  .refine((data) => data.name !== undefined || data.role !== undefined, {
+    message: 'Debe enviar al menos un campo para actualizar (name o role)',
+  });
+
 export const changePasswordSchema = z.object({
   // Opcional a nivel schema: en el PRIMER INGRESO (mustChangePassword) no se re-pide la
   // actual. La obligatoriedad para el cambio voluntario la valida auth.service según el flag.
