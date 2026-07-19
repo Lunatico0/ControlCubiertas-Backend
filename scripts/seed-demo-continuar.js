@@ -1,7 +1,8 @@
 // APPENDEA ~6 meses más de operaciones al tenant demo Andes Cargo, SIN borrar lo anterior.
 // Complementa a seed-demo-realista.js (que sí limpia y regenera). Genera los movimientos por la
 // capa de servicios (alta/asignar/desasignar/recapar/descartar) para mantener km, posiciones y
-// estados coherentes, y backdatea el historial NUEVO hacia adelante (~6 meses) sin tocar el viejo.
+// estados coherentes, y backdatea el historial NUEVO en el PASADO reciente (≤ hoy) sin tocar el
+// viejo. NUNCA fechas futuras (romperían el replay de estado por fecha).
 //
 // Uso: cd backend && node scripts/seed-demo-continuar.js
 import mongoose from 'mongoose';
@@ -90,19 +91,23 @@ try {
     else if (r === 1 && t.status === '3er Recapado') { await setStatus(id, 'A recapar'); await setStatus(id, 'Descartada'); bajas += 1; }
   }
 
-  // 3) Backdatear SOLO el historial nuevo, hacia adelante (~6 meses), monótono por cubierta.
+  // 3) Backdatear SOLO el historial nuevo, en el PASADO reciente (termina hace 1-20 días),
+  //    monótono por cubierta. NUNCA fechas futuras: recalculateTireState reproduce el historial
+  //    ordenando por `date`, así que un evento en el futuro rompe el estado de cualquier
+  //    operación real hecha "hoy" (kmAlta del futuro, tarjetas con fecha futura, etc.).
   const histOps = [];
   const tireOps = [];
   for (const id of touched) {
     const entries = await db.History.find({ tire: id, createdAt: { $gte: runStart } }).sort({ _id: 1 }).select('_id').lean();
     if (!entries.length) continue;
-    const start = NOW.getTime() + ri(2, 90) * DAY;
     const span = ri(40, 150) * DAY;
+    const end = NOW.getTime() - ri(1, 20) * DAY; // termina en el pasado reciente (≤ hoy)
+    const start = end - span;
     entries.forEach((e, k) => {
-      const date = new Date(entries.length <= 1 ? start : Math.round(start + span * (k / (entries.length - 1))));
+      const date = new Date(entries.length <= 1 ? end : Math.round(start + span * (k / (entries.length - 1))));
       histOps.push({ updateOne: { filter: { _id: e._id }, update: { $set: { date } } } });
     });
-    const last = new Date(entries.length <= 1 ? start : start + span);
+    const last = new Date(end);
     tireOps.push({ updateOne: { filter: { _id: new mongoose.Types.ObjectId(id) }, update: { $set: { updatedAt: last } } } });
   }
   if (histOps.length) await db.History.bulkWrite(histOps);
