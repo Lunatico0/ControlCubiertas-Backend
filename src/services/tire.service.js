@@ -1,6 +1,10 @@
 import { toCorrectionType, recalculateTireState, updateTireFromState, addHistoryEntry } from '../utils/utils.js';
 import { generatePositions } from '../utils/axles.js';
 
+// Error de validación/negocio con código HTTP: el controller usa `error.status || 500` para
+// distinguir input inválido (4xx) de una falla real del server (500).
+const httpError = (message, status) => Object.assign(new Error(message), { status });
+
 // Los modelos llegan por `db` (inyectado por el middleware attachDb) en vez de importarse
 // globalmente. Esto habilita DB-per-tenant: el mismo service opera sobre la conexión del
 // tenant que resuelva el middleware. La conexión NUNCA se guarda como estado del singleton.
@@ -123,14 +127,14 @@ class TireService {
     const tire = await this.getDocById(db, tireId);
     const vehicle = await this.findVehicleById(db, vehicleId);
 
-    if (tire.vehicle) throw new Error('La cubierta ya está asignada a un vehículo');
+    if (tire.vehicle) throw httpError('La cubierta ya está asignada a un vehículo', 409);
 
     // Posición opcional: si viene, debe existir en los ejes del vehículo y estar libre.
     if (position) {
       const exists = generatePositions(vehicle.axles).some((p) => p.code === position);
-      if (!exists) throw new Error(`La posición ${position} no existe en este vehículo`);
+      if (!exists) throw httpError(`La posición ${position} no existe en este vehículo`, 400);
       const occupied = await db.Tire.findOne({ vehicle: vehicleId, position, _id: { $ne: tire._id } });
-      if (occupied) throw new Error(`La posición ${position} ya está ocupada en este vehículo`);
+      if (occupied) throw httpError(`La posición ${position} ya está ocupada en este vehículo`, 409);
     }
 
     tire.vehicle = vehicleId;
@@ -165,7 +169,7 @@ class TireService {
     const kmAlta = currentState.lastAssignmentKm;
     const kmRecorridos = kmBaja - kmAlta;
 
-    if (kmRecorridos < 0) throw new Error('Kilometraje de baja no puede ser menor que el de alta');
+    if (kmRecorridos < 0) throw httpError('Kilometraje de baja no puede ser menor que el de alta', 400);
 
     tire.vehicle = null;
     tire.position = null; // al bajar del vehículo, la cubierta deja su posición libre

@@ -126,6 +126,18 @@ class VehicleController {
         });
       }
 
+      // Pre-check de duplicados (mismo criterio que updateDetails): mensaje amable en vez de
+      // dejar explotar el índice único → evita filtrar el error crudo de Mongo (E11000 +
+      // nombre de la DB del tenant + índice) al usuario.
+      const duplicateMobile = await req.db.Vehicle.findOne({ mobile });
+      if (duplicateMobile) {
+        return res.status(400).json({ message: "Ya existe un vehículo con ese número de móvil" });
+      }
+      const duplicatePlate = await req.db.Vehicle.findOne({ licensePlate });
+      if (duplicatePlate) {
+        return res.status(400).json({ message: "Ya existe un vehículo con esa patente" });
+      }
+
       // Crear el nuevo vehículo (axles/kilometers opcionales: defaults [] y 0 vía schema)
       const newVehicle = new req.db.Vehicle({ brand, mobile, licensePlate, type, axles, kilometers, tires: [] });
       await newVehicle.save();

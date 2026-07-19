@@ -85,7 +85,7 @@ class TireController {
       res.status(200).json({ message: 'Cubierta asignada correctamente', tire });
     } catch (error) {
       console.error('Error en assignVehicle:', error);
-      res.status(500).json({ message: error.message });
+      res.status(error.status || 500).json({ message: error.message });
     }
   }
 
@@ -105,7 +105,7 @@ class TireController {
       });
     } catch (error) {
       console.error('Error en unassignVehicle:', error);
-      res.status(500).json({ message: error.message });
+      res.status(error.status || 500).json({ message: error.message });
     }
   }
 
