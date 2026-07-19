@@ -1,5 +1,6 @@
 import { addHistoryEntry } from '../utils/utils.js';
 import { buildVehiclePositions, generatePositions } from '../utils/axles.js';
+import { normalizePlate } from '../utils/plate.js';
 
 // Modelos vía req.db (inyectado por attachDb). El historial vive en la colección History
 // (no en el doc Tire): por eso usamos addHistoryEntry y NO tire.history.push (Bug 5 resuelto).
@@ -126,20 +127,25 @@ class VehicleController {
         });
       }
 
+      // Patente normalizada (MAYÚSCULAS, sin símbolos): así "ABC-301" == "ABC301" y no se
+      // puede evadir el chequeo de duplicados con un guion.
+      const plate = normalizePlate(licensePlate);
+
       // Pre-check de duplicados (mismo criterio que updateDetails): mensaje amable en vez de
       // dejar explotar el índice único → evita filtrar el error crudo de Mongo (E11000 +
-      // nombre de la DB del tenant + índice) al usuario.
+      // nombre de la DB del tenant + índice) al usuario. `field` le dice al front qué campo
+      // marcar en rojo.
       const duplicateMobile = await req.db.Vehicle.findOne({ mobile });
       if (duplicateMobile) {
-        return res.status(400).json({ message: "Ya existe un vehículo con ese número de móvil" });
+        return res.status(400).json({ message: "Ya existe un vehículo con ese número de móvil", field: "mobile" });
       }
-      const duplicatePlate = await req.db.Vehicle.findOne({ licensePlate });
+      const duplicatePlate = await req.db.Vehicle.findOne({ licensePlate: plate });
       if (duplicatePlate) {
-        return res.status(400).json({ message: "Ya existe un vehículo con esa patente" });
+        return res.status(400).json({ message: "Ya existe un vehículo con esa patente", field: "licensePlate" });
       }
 
       // Crear el nuevo vehículo (axles/kilometers opcionales: defaults [] y 0 vía schema)
-      const newVehicle = new req.db.Vehicle({ brand, mobile, licensePlate, type, axles, kilometers, tires: [] });
+      const newVehicle = new req.db.Vehicle({ brand, mobile, licensePlate: plate, type, axles, kilometers, tires: [] });
       await newVehicle.save();
 
       await Promise.all(
@@ -265,19 +271,22 @@ class VehicleController {
         return res.status(404).json({ message: "Vehículo no encontrado" });
       }
 
-      // Validación opcional: evitar duplicados en mobile o patente
+      // Patente normalizada (MAYÚSCULAS, sin símbolos): "ABC-301" == "ABC301".
+      const plate = normalizePlate(licensePlate);
+
+      // Validación: evitar duplicados en mobile o patente. `field` → el front marca el campo.
       const duplicateMobile = await req.db.Vehicle.findOne({ mobile, _id: { $ne: id } });
       if (duplicateMobile) {
-        return res.status(400).json({ message: "Ya existe un vehículo con ese número de móvil" });
+        return res.status(400).json({ message: "Ya existe un vehículo con ese número de móvil", field: "mobile" });
       }
 
-      const duplicatePlate = await req.db.Vehicle.findOne({ licensePlate, _id: { $ne: id } });
+      const duplicatePlate = await req.db.Vehicle.findOne({ licensePlate: plate, _id: { $ne: id } });
       if (duplicatePlate) {
-        return res.status(400).json({ message: "Ya existe un vehículo con esa patente" });
+        return res.status(400).json({ message: "Ya existe un vehículo con esa patente", field: "licensePlate" });
       }
 
       vehicle.mobile = mobile;
-      vehicle.licensePlate = licensePlate;
+      vehicle.licensePlate = plate;
       vehicle.brand = brand;
       vehicle.type = type;
 

@@ -63,6 +63,30 @@ describe('#1 — Alta de vehículo: duplicados con mensaje amable (sin filtrar M
   });
 });
 
+describe('#4 — Patente normalizada (alfanumérica, case-insensitive)', () => {
+  it('normaliza a MAYÚSCULAS y sin símbolos al crear', async () => {
+    const res = await mkVehicle('NORM-1', 'xyz-999');
+    expect(res.status).toBe(201);
+    expect(res.body.licensePlate).toBe('XYZ999');
+  });
+
+  it('"ABC301" y "ABC-301" son la misma patente → duplicado (400 + field)', async () => {
+    const a = await mkVehicle('NORM-2a', 'ABC301');
+    expect(a.status).toBe(201);
+    const b = await mkVehicle('NORM-2b', 'ABC-301');
+    expect(b.status).toBe(400);
+    expect(b.body.message).toMatch(/patente/i);
+    expect(b.body.field).toBe('licensePlate');
+  });
+
+  it('el 400 de móvil duplicado trae field="mobile"', async () => {
+    await mkVehicle('NORM-DUPMOB', 'NORMP-1');
+    const res = await mkVehicle('NORM-DUPMOB', 'NORMP-2');
+    expect(res.status).toBe(400);
+    expect(res.body.field).toBe('mobile');
+  });
+});
+
 describe('#3 — Validaciones de asignar/desasignar devuelven 4xx (no 500)', () => {
   it('409 al asignar a una posición ya ocupada', async () => {
     const veh = await mkVehicle('OCC-1', 'OCC-P1');
