@@ -1,48 +1,54 @@
 import { addHistoryEntry } from '../utils/utils.js';
 import { buildVehiclePositions, generatePositions } from '../utils/axles.js';
 import { normalizePlate } from '../utils/plate.js';
+import { httpError } from '../utils/httpError.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+
+// Pre-check de duplicados de vehículo (mismo criterio en alta y edición): mensaje amable en vez
+// de dejar explotar el índice único → evita filtrar el error crudo de Mongo (E11000 + nombre de
+// la DB del tenant + índice). `field` le dice al front qué campo marcar en rojo. En edición se
+// pasa `excludeId` para no chocar contra el propio documento.
+async function assertVehicleUnique(db, { mobile, plate, excludeId }) {
+  const scope = (extra) => (excludeId ? { ...extra, _id: { $ne: excludeId } } : extra);
+  if (await db.Vehicle.findOne(scope({ mobile }))) {
+    throw httpError('Ya existe un vehículo con ese número de móvil', 400, 'mobile');
+  }
+  if (await db.Vehicle.findOne(scope({ licensePlate: plate }))) {
+    throw httpError('Ya existe un vehículo con esa patente', 400, 'licensePlate');
+  }
+}
 
 // Modelos vía req.db (inyectado por attachDb). El historial vive en la colección History
 // (no en el doc Tire): por eso usamos addHistoryEntry y NO tire.history.push (Bug 5 resuelto).
+//
+// create/update/updateDetails/updateAxles/createVehicleType se dejan con try/catch a propósito:
+// hoy mapean el error genérico a un status fijo (400) o a un mensaje/wrapper propio (500 "Error
+// al actualizar el vehículo"). El middleware central solo reproduce "status || 500", así que el
+// catch es necesario para preservar ese contrato. Las lecturas (→ 500) sí se convirtieron.
 class VehicleController {
-  async getAll(req, res) {
-    try {
-      const vehicles = await req.db.Vehicle.find().populate('tires');
-      res.json(vehicles);
-    } catch (error) {
-      console.error("Error al obtener los vehículos: ", error.message);
-      res.status(500).json({ message: error.message });
-    }
-  }
+  getAll = asyncHandler(async (req, res) => {
+    const vehicles = await req.db.Vehicle.find().populate('tires');
+    res.json(vehicles);
+  });
 
-  async getById(req, res) {
-    try {
-      const { id } = req.params;
-      const vehicle = await req.db.Vehicle.findById(id).populate('tires');
-      res.json(vehicle);
-    } catch (error) {
-      console.error("Error al obtener el vehículo: ", error.message);
-      res.status(500).json({ message: error.message });
-    }
-  }
+  getById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const vehicle = await req.db.Vehicle.findById(id).populate('tires');
+    res.json(vehicle);
+  });
 
   // Esquema de ejes del vehículo + qué cubierta ocupa cada posición (o null si libre).
   // Lo consume el frontend para dibujar el vehículo y ofrecer el selector al montar.
-  async getPositions(req, res) {
-    try {
-      const { id } = req.params;
-      const vehicle = await req.db.Vehicle.findById(id);
-      if (!vehicle) return res.status(404).json({ message: 'Vehículo no encontrado' });
+  getPositions = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const vehicle = await req.db.Vehicle.findById(id);
+    if (!vehicle) return res.status(404).json({ message: 'Vehículo no encontrado' });
 
-      const tires = await req.db.Tire.find({ vehicle: id });
-      const positions = buildVehiclePositions(vehicle.axles, tires);
+    const tires = await req.db.Tire.find({ vehicle: id });
+    const positions = buildVehiclePositions(vehicle.axles, tires);
 
-      res.json({ vehicleId: String(vehicle._id), axles: vehicle.axles, positions });
-    } catch (error) {
-      console.error('Error al obtener posiciones del vehículo:', error.message);
-      res.status(500).json({ message: error.message });
-    }
-  }
+    res.json({ vehicleId: String(vehicle._id), axles: vehicle.axles, positions });
+  });
 
   // Configurar el esquema de ejes de un vehículo existente (migración A4: adaptar los
   // vehículos viejos al modelo de ejes). Setea axles (+ kilometers opcional).
@@ -86,15 +92,10 @@ class VehicleController {
 
   // Tipos de vehículo custom del tenant (data-plane). Los presets viven en el front; acá
   // solo los que el usuario guarda. Nombre único (validado en código, no por índice).
-  async listVehicleTypes(req, res) {
-    try {
-      const types = await req.db.VehicleType.find().sort({ name: 1 });
-      res.json(types);
-    } catch (error) {
-      console.error('Error al listar tipos de vehículo:', error.message);
-      res.status(500).json({ message: error.message });
-    }
-  }
+  listVehicleTypes = asyncHandler(async (req, res) => {
+    const types = await req.db.VehicleType.find().sort({ name: 1 });
+    res.json(types);
+  });
 
   async createVehicleType(req, res) {
     try {
@@ -131,18 +132,7 @@ class VehicleController {
       // puede evadir el chequeo de duplicados con un guion.
       const plate = normalizePlate(licensePlate);
 
-      // Pre-check de duplicados (mismo criterio que updateDetails): mensaje amable en vez de
-      // dejar explotar el índice único → evita filtrar el error crudo de Mongo (E11000 +
-      // nombre de la DB del tenant + índice) al usuario. `field` le dice al front qué campo
-      // marcar en rojo.
-      const duplicateMobile = await req.db.Vehicle.findOne({ mobile });
-      if (duplicateMobile) {
-        return res.status(400).json({ message: "Ya existe un vehículo con ese número de móvil", field: "mobile" });
-      }
-      const duplicatePlate = await req.db.Vehicle.findOne({ licensePlate: plate });
-      if (duplicatePlate) {
-        return res.status(400).json({ message: "Ya existe un vehículo con esa patente", field: "licensePlate" });
-      }
+      await assertVehicleUnique(req.db, { mobile, plate });
 
       // Crear el nuevo vehículo (axles/kilometers opcionales: defaults [] y 0 vía schema)
       const newVehicle = new req.db.Vehicle({ brand, mobile, licensePlate: plate, type, axles, kilometers, tires: [] });
@@ -172,7 +162,7 @@ class VehicleController {
       res.status(201).json(newVehicle);
     } catch (error) {
       console.error("Error al crear el vehículo: ", error.message);
-      res.status(400).json({ message: error.message });
+      res.status(error.status || 400).json({ message: error.message, ...(error.field ? { field: error.field } : {}) });
     }
   }
 
@@ -274,16 +264,7 @@ class VehicleController {
       // Patente normalizada (MAYÚSCULAS, sin símbolos): "ABC-301" == "ABC301".
       const plate = normalizePlate(licensePlate);
 
-      // Validación: evitar duplicados en mobile o patente. `field` → el front marca el campo.
-      const duplicateMobile = await req.db.Vehicle.findOne({ mobile, _id: { $ne: id } });
-      if (duplicateMobile) {
-        return res.status(400).json({ message: "Ya existe un vehículo con ese número de móvil", field: "mobile" });
-      }
-
-      const duplicatePlate = await req.db.Vehicle.findOne({ licensePlate: plate, _id: { $ne: id } });
-      if (duplicatePlate) {
-        return res.status(400).json({ message: "Ya existe un vehículo con esa patente", field: "licensePlate" });
-      }
+      await assertVehicleUnique(req.db, { mobile, plate, excludeId: id });
 
       vehicle.mobile = mobile;
       vehicle.licensePlate = plate;
@@ -294,6 +275,11 @@ class VehicleController {
       res.json(updated);
     } catch (error) {
       console.error("Error al actualizar detalles del vehículo:", error.message);
+      // Duplicado (httpError con status/field): mensaje amable 400 + field. Cualquier otro
+      // error mantiene el wrapper 500 histórico (no filtra el error crudo de Mongo).
+      if (error.status) {
+        return res.status(error.status).json({ message: error.message, ...(error.field ? { field: error.field } : {}) });
+      }
       res.status(500).json({ message: "Error al actualizar el vehículo", error: error.message });
     }
   }

@@ -1,6 +1,7 @@
 import { getControlModels } from '../db/controlPlane.js';
 import { getTenantDb } from '../db/tenantConnections.js';
 import { normalizeStatuses, assertValidStatuses } from '../utils/statuses.js';
+import { httpError } from '../utils/httpError.js';
 
 // Config de la empresa (tenant) editable por el tenant-admin. Campos del sistema
 // (dbName, plan, status) NO se tocan acá — solo los administra el provisioning/super-admin.
@@ -31,7 +32,7 @@ export async function getTenantStatuses(tenantId) {
 export async function updateCompany(tenantId, data) {
   const { Tenant } = getControlModels();
   const current = await Tenant.findById(tenantId);
-  if (!current) throw new Error('Empresa no encontrada');
+  if (!current) throw httpError('Empresa no encontrada', 400);
 
   const update = {};
   for (const key of EDITABLE) {
@@ -51,13 +52,13 @@ export async function updateCompany(tenantId, data) {
       for (const name of removed) {
         const count = await Tire.countDocuments({ status: name });
         if (count > 0) {
-          throw new Error(`No se puede eliminar o renombrar el estado "${name}": ${count} cubierta(s) lo usan. Reasignalas primero.`);
+          throw httpError(`No se puede eliminar o renombrar el estado "${name}": ${count} cubierta(s) lo usan. Reasignalas primero.`, 400);
         }
       }
     }
   }
 
   const tenant = await Tenant.findByIdAndUpdate(tenantId, update, { new: true, runValidators: true });
-  if (!tenant) throw new Error('Empresa no encontrada');
+  if (!tenant) throw httpError('Empresa no encontrada', 400);
   return serialize(tenant);
 }

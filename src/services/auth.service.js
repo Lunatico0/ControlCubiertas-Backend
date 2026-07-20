@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { httpError } from '../utils/httpError.js';
 
 const ACCESS_TTL = '15m';
 const REFRESH_TTL = '7d';
@@ -24,22 +25,26 @@ export const verifyRefreshToken = (token) =>
 
 const INVALID = 'Credenciales inválidas';
 
+// Claims firmados en el access token: tenantId + dbName + role, así el middleware resuelve
+// el tenant sin tocar el control plane en cada request. Compartido por login y refresh.
+const buildClaims = (user, tenant) => ({
+  userId: user._id.toString(),
+  tenantId: tenant._id.toString(),
+  dbName: tenant.dbName,
+  role: user.role,
+});
+
 export async function login({ User, Tenant }, email, password) {
   const user = await User.findOne({ email: email?.toLowerCase().trim() });
-  if (!user || user.status !== 'active') throw new Error(INVALID);
+  if (!user || user.status !== 'active') throw httpError(INVALID, 401);
 
   const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) throw new Error(INVALID);
+  if (!ok) throw httpError(INVALID, 401);
 
   const tenant = await Tenant.findById(user.tenantId);
-  if (!tenant || tenant.status !== 'active') throw new Error('Tenant inactivo o inexistente');
+  if (!tenant || tenant.status !== 'active') throw httpError('Tenant inactivo o inexistente', 401);
 
-  const claims = {
-    userId: user._id.toString(),
-    tenantId: tenant._id.toString(),
-    dbName: tenant.dbName,
-    role: user.role,
-  };
+  const claims = buildClaims(user, tenant);
 
   return {
     accessToken: signAccessToken(claims),
@@ -61,12 +66,12 @@ export async function login({ User, Tenant }, email, password) {
 //  - VOLUNTARIO: exige la contraseña actual y la verifica (seguridad).
 export async function changePassword({ User }, userId, currentPassword, newPassword) {
   const user = await User.findById(userId);
-  if (!user) throw new Error('Usuario no encontrado');
+  if (!user) throw httpError('Usuario no encontrado', 400);
 
   if (!user.mustChangePassword) {
-    if (!currentPassword) throw new Error('Ingresá tu contraseña actual');
+    if (!currentPassword) throw httpError('Ingresá tu contraseña actual', 400);
     const ok = await verifyPassword(currentPassword, user.passwordHash);
-    if (!ok) throw new Error('La contraseña actual es incorrecta');
+    if (!ok) throw httpError('La contraseña actual es incorrecta', 400);
   }
 
   user.passwordHash = await hashPassword(newPassword);
@@ -79,16 +84,11 @@ export async function changePassword({ User }, userId, currentPassword, newPassw
 export async function refresh({ User, Tenant }, refreshToken) {
   const { userId } = verifyRefreshToken(refreshToken);
   const user = await User.findById(userId);
-  if (!user || user.status !== 'active') throw new Error(INVALID);
+  if (!user || user.status !== 'active') throw httpError(INVALID, 401);
 
   const tenant = await Tenant.findById(user.tenantId);
-  if (!tenant || tenant.status !== 'active') throw new Error('Tenant inactivo o inexistente');
+  if (!tenant || tenant.status !== 'active') throw httpError('Tenant inactivo o inexistente', 401);
 
-  const claims = {
-    userId: user._id.toString(),
-    tenantId: tenant._id.toString(),
-    dbName: tenant.dbName,
-    role: user.role,
-  };
+  const claims = buildClaims(user, tenant);
   return { accessToken: signAccessToken(claims) };
 }

@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { getControlModels } from '../db/controlPlane.js';
 import { getTenantDb } from '../db/tenantConnections.js';
 import { hashPassword } from './auth.service.js';
+import { httpError } from '../utils/httpError.js';
 
 // "Cliente Uno" -> "tenant_cliente_uno"
 export function slugifyDbName(name) {
@@ -26,10 +27,10 @@ export async function provisionTenant({ name, adminEmail, password, plan = 'free
   const email = adminEmail.toLowerCase().trim();
 
   if (await Tenant.findOne({ $or: [{ name }, { dbName: finalDbName }] })) {
-    throw new Error(`Ya existe un tenant "${name}" (${finalDbName})`);
+    throw httpError(`Ya existe un tenant "${name}" (${finalDbName})`, 409);
   }
   if (await User.findOne({ email })) {
-    throw new Error(`El email ${email} ya está registrado`);
+    throw httpError(`El email ${email} ya está registrado`, 409);
   }
 
   const tempPassword = password || crypto.randomBytes(6).toString('hex');

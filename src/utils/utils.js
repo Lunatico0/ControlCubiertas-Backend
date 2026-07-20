@@ -69,7 +69,3 @@ export const updateTireFromState = (tireDoc, state) => {
   tireDoc.status = state.currentStatus;
   tireDoc.kilometers = state.totalKilometers;
 };
-
-export const isValidOrderNumberFormat = (orderNumber) => {
-  return /^\d{4}-\d{6}$/.test(orderNumber);
-};

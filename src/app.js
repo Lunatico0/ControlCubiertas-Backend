@@ -83,12 +83,15 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Middleware de manejo de errores
+// Middleware de manejo de errores central: los handlers (vía asyncHandler) y los services
+// tiran httpError(message, status, field); acá se serializa. Solo se loguea el 5xx (una falla
+// real del server); un 4xx es input inválido esperado, no ruido de consola.
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
-  res.status(500).json({
-    message: 'Error interno del servidor',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  const status = err.status || 500;
+  if (status >= 500) console.error(err);
+  res.status(status).json({
+    message: err.message || 'Error interno',
+    ...(err.field ? { field: err.field } : {}),
   });
 });
 

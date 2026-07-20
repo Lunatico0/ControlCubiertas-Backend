@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { getControlModels } from '../db/controlPlane.js';
 import { hashPassword } from './auth.service.js';
+import { httpError } from '../utils/httpError.js';
 
 // Gestión de usuarios del tenant (control plane). Toda operación está scopeada al
 // tenantId del admin autenticado: NUNCA se puede leer ni tocar usuarios de otro tenant.
@@ -15,7 +16,7 @@ export async function createUser(tenantId, { email, name, role = 'operator' }) {
   const { User } = getControlModels();
   const normalized = email.toLowerCase().trim();
   if (await User.findOne({ email: normalized })) {
-    throw new Error('El email ya está registrado');
+    throw httpError('El email ya está registrado', 400);
   }
   const tempPassword = crypto.randomBytes(6).toString('hex');
   const created = await User.create({
@@ -33,12 +34,12 @@ export async function createUser(tenantId, { email, name, role = 'operator' }) {
 export async function setUserStatus(tenantId, userId, status) {
   const { User } = getControlModels();
   const user = await User.findOne({ _id: userId, tenantId });
-  if (!user) throw new Error('Usuario no encontrado');
+  if (!user) throw httpError('Usuario no encontrado', 400);
 
   // No dejar al tenant sin ningún admin activo.
   if (status === 'inactive' && user.role === 'tenant-admin') {
     const activeAdmins = await User.countDocuments({ tenantId, role: 'tenant-admin', status: 'active' });
-    if (activeAdmins <= 1) throw new Error('No se puede desactivar al único administrador activo');
+    if (activeAdmins <= 1) throw httpError('No se puede desactivar al único administrador activo', 400);
   }
 
   user.status = status;
@@ -52,10 +53,10 @@ export async function setUserStatus(tenantId, userId, status) {
 export async function updateUser(tenantId, selfUserId, userId, { name, role }) {
   const { User } = getControlModels();
   const user = await User.findOne({ _id: userId, tenantId });
-  if (!user) throw new Error('Usuario no encontrado');
+  if (!user) throw httpError('Usuario no encontrado', 400);
 
   if (role && role !== 'tenant-admin' && user.role === 'tenant-admin' && String(userId) === String(selfUserId)) {
-    throw new Error('No podés quitarte a vos mismo el rol de administrador');
+    throw httpError('No podés quitarte a vos mismo el rol de administrador', 400);
   }
 
   if (name !== undefined) user.name = name;
@@ -71,7 +72,7 @@ export async function updateUser(tenantId, selfUserId, userId, { name, role }) {
 export async function resetPassword(tenantId, userId) {
   const { User } = getControlModels();
   const user = await User.findOne({ _id: userId, tenantId });
-  if (!user) throw new Error('Usuario no encontrado');
+  if (!user) throw httpError('Usuario no encontrado', 400);
 
   const tempPassword = crypto.randomBytes(6).toString('hex');
   user.passwordHash = await hashPassword(tempPassword);

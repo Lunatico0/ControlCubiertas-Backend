@@ -9,18 +9,18 @@ const router = Router();
 // Todo el panel es admin-only y opera sobre el control plane (NO usa attachDb).
 router.use(authenticate, requireRole('tenant-admin'));
 
-router.get('/users', (req, res) => AdminController.listUsers(req, res));
-router.post('/users', validate(createUserSchema), (req, res) => AdminController.createUser(req, res));
-router.patch('/users/:id/status', validate(setUserStatusSchema), (req, res) => AdminController.setUserStatus(req, res));
-router.patch('/users/:id', validate(updateUserSchema), (req, res) => AdminController.updateUser(req, res));
-router.post('/users/:id/reset-password', (req, res) => AdminController.resetPassword(req, res));
+router.get('/users', (req, res, next) => AdminController.listUsers(req, res, next));
+router.post('/users', validate(createUserSchema), (req, res, next) => AdminController.createUser(req, res, next));
+router.patch('/users/:id/status', validate(setUserStatusSchema), (req, res, next) => AdminController.setUserStatus(req, res, next));
+router.patch('/users/:id', validate(updateUserSchema), (req, res, next) => AdminController.updateUser(req, res, next));
+router.post('/users/:id/reset-password', (req, res, next) => AdminController.resetPassword(req, res, next));
 
-router.get('/summary', (req, res) => AdminController.summary(req, res));
-router.get('/receipts', (req, res) => AdminController.receipts(req, res));
-router.get('/reports', (req, res) => AdminController.reports(req, res));
-router.get('/reports/vehicles', (req, res) => AdminController.vehicleReports(req, res));
-router.get('/reports/vehicles/:id/wear', (req, res) => AdminController.vehicleWear(req, res));
-router.get('/company', (req, res) => AdminController.getCompany(req, res));
-router.patch('/company', validate(updateCompanySchema), (req, res) => AdminController.updateCompany(req, res));
+router.get('/summary', (req, res, next) => AdminController.summary(req, res, next));
+router.get('/receipts', (req, res, next) => AdminController.receipts(req, res, next));
+router.get('/reports', (req, res, next) => AdminController.reports(req, res, next));
+router.get('/reports/vehicles', (req, res, next) => AdminController.vehicleReports(req, res, next));
+router.get('/reports/vehicles/:id/wear', (req, res, next) => AdminController.vehicleWear(req, res, next));
+router.get('/company', (req, res, next) => AdminController.getCompany(req, res, next));
+router.patch('/company', validate(updateCompanySchema), (req, res, next) => AdminController.updateCompany(req, res, next));
 
 export default router;

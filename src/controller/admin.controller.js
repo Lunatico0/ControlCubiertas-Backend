@@ -3,18 +3,20 @@ import * as company from '../services/company.service.js';
 import { getTenantSummary } from '../services/stats.service.js';
 import { getTenantReceipts } from '../services/receipts.service.js';
 import { getTenantReports, getVehicleReports, getVehicleWear } from '../services/reports.service.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 // Panel de administración (tenant-admin). Opera sobre el CONTROL PLANE; el tenant
 // se toma SIEMPRE de req.auth.tenantId (nunca del body), así un admin no puede
 // tocar usuarios de otro tenant.
+//
+// Los handlers de escritura de usuarios (create/update/setStatus/resetPassword) y de empresa
+// (updateCompany) se dejan con try/catch a propósito: hoy mapean CUALQUIER error a 400. El
+// middleware central solo puede reproducir "status || 500", así que forzar 400 a un error
+// inesperado (que no sea httpError) exige el catch. El resto (lecturas → 500) se convirtió.
 class AdminController {
-  async listUsers(req, res) {
-    try {
-      res.json(await userAdmin.listUsers(req.auth.tenantId));
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  listUsers = asyncHandler(async (req, res) => {
+    res.json(await userAdmin.listUsers(req.auth.tenantId));
+  });
 
   async createUser(req, res) {
     try {
@@ -52,13 +54,9 @@ class AdminController {
     }
   }
 
-  async getCompany(req, res) {
-    try {
-      res.json(await company.getCompany(req.auth.tenantId));
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  getCompany = asyncHandler(async (req, res) => {
+    res.json(await company.getCompany(req.auth.tenantId));
+  });
 
   async updateCompany(req, res) {
     try {
@@ -68,45 +66,25 @@ class AdminController {
     }
   }
 
-  async summary(req, res) {
-    try {
-      res.json(await getTenantSummary(req.auth.dbName, await company.getTenantStatuses(req.auth.tenantId)));
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  summary = asyncHandler(async (req, res) => {
+    res.json(await getTenantSummary(req.auth.dbName, await company.getTenantStatuses(req.auth.tenantId)));
+  });
 
-  async receipts(req, res) {
-    try {
-      res.json(await getTenantReceipts(req.auth.dbName, req.query));
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  receipts = asyncHandler(async (req, res) => {
+    res.json(await getTenantReceipts(req.auth.dbName, req.query));
+  });
 
-  async reports(req, res) {
-    try {
-      res.json(await getTenantReports(req.auth.dbName, await company.getTenantStatuses(req.auth.tenantId), req.query));
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  reports = asyncHandler(async (req, res) => {
+    res.json(await getTenantReports(req.auth.dbName, await company.getTenantStatuses(req.auth.tenantId), req.query));
+  });
 
-  async vehicleReports(req, res) {
-    try {
-      res.json(await getVehicleReports(req.auth.dbName, await company.getTenantStatuses(req.auth.tenantId)));
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  vehicleReports = asyncHandler(async (req, res) => {
+    res.json(await getVehicleReports(req.auth.dbName, await company.getTenantStatuses(req.auth.tenantId)));
+  });
 
-  async vehicleWear(req, res) {
-    try {
-      res.json(await getVehicleWear(req.auth.dbName, req.params.id, await company.getTenantStatuses(req.auth.tenantId)));
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  vehicleWear = asyncHandler(async (req, res) => {
+    res.json(await getVehicleWear(req.auth.dbName, req.params.id, await company.getTenantStatuses(req.auth.tenantId)));
+  });
 }
 
 export default new AdminController();

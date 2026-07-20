@@ -1,9 +1,6 @@
 import { toCorrectionType, recalculateTireState, updateTireFromState, addHistoryEntry } from '../utils/utils.js';
 import { generatePositions } from '../utils/axles.js';
-
-// Error de validación/negocio con código HTTP: el controller usa `error.status || 500` para
-// distinguir input inválido (4xx) de una falla real del server (500).
-const httpError = (message, status) => Object.assign(new Error(message), { status });
+import { httpError } from '../utils/httpError.js';
 
 // Los modelos llegan por `db` (inyectado por el middleware attachDb) en vez de importarse
 // globalmente. Esto habilita DB-per-tenant: el mismo service opera sobre la conexión del
@@ -347,7 +344,7 @@ class TireService {
       ? `${reasonCorrection} ${userExtra}`
       : reasonCorrection;
 
-    // ✅ AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL
+    // km recalculado para las correcciones de desasignación (ver abajo).
     let kmFinal = undefined;
 
     // Para Correcciónes de Desasignación, calcular correctamente los km
@@ -385,7 +382,7 @@ class TireService {
       reason: reasonFinal,
       vehicle: updates.form.vehicle || null,
       corrects: original._id,
-      km: kmFinal, // ✅ Usar el valor calculado correctamente
+      km: kmFinal, // usa el valor calculado arriba
       receiptNumber
     };
 
@@ -430,7 +427,7 @@ class TireService {
 
     let revertedData = {};
 
-    // 🎯 LÓGICA ESPECÍFICA SEGÚN EL TIPO DE ENTRADA
+    // Lógica de reversión según el tipo de entrada.
     switch (original.type) {
       case 'Asignación':
       case 'Corrección-Asignación':

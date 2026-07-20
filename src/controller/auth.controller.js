@@ -1,17 +1,16 @@
 import { getControlModels } from '../db/controlPlane.js';
 import * as authService from '../services/auth.service.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 class AuthController {
-  async login(req, res) {
-    try {
-      const { email, password } = req.body;
-      const result = await authService.login(getControlModels(), email, password);
-      res.json(result);
-    } catch (error) {
-      res.status(401).json({ message: error.message });
-    }
-  }
+  login = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    const result = await authService.login(getControlModels(), email, password);
+    res.json(result);
+  });
 
+  // Se deja con try/catch a propósito: verifyRefreshToken (jwt) tira un error SIN status ante
+  // un token inválido/expirado, y hoy ese caso responde 401. Con asyncHandler iría a 500.
   async refresh(req, res) {
     try {
       const { refreshToken } = req.body;
@@ -23,14 +22,10 @@ class AuthController {
     }
   }
 
-  async changePassword(req, res) {
-    try {
-      await authService.changePassword(getControlModels(), req.auth.userId, req.body.currentPassword, req.body.newPassword);
-      res.json({ message: 'Contraseña actualizada' });
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  }
+  changePassword = asyncHandler(async (req, res) => {
+    await authService.changePassword(getControlModels(), req.auth.userId, req.body.currentPassword, req.body.newPassword);
+    res.json({ message: 'Contraseña actualizada' });
+  });
 }
 
 export default new AuthController();
