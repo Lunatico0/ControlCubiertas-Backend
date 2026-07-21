@@ -1,4 +1,6 @@
+import { sentryEnabled } from './instrument.js';
 import express from 'express';
+import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import { config } from 'dotenv';
 import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
@@ -82,6 +84,10 @@ app.get('/health', (req, res) => {
     cors: 'enabled'
   });
 });
+
+// Sentry captura las excepciones (5xx / no manejadas) ANTES del handler central. No-op si
+// Sentry no esta activo (sin DSN o en tests). Va despues de las rutas, antes del error mw.
+if (sentryEnabled) Sentry.setupExpressErrorHandler(app);
 
 // Middleware de manejo de errores central: los handlers (vía asyncHandler) y los services
 // tiran httpError(message, status, field); acá se serializa. Solo se loguea el 5xx (una falla
