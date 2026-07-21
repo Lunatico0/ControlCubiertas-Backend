@@ -14,6 +14,12 @@ let baseConnection = null;
 
 export function initBaseConnection(uri, options = {}) {
   baseConnection = mongoose.createConnection(uri, options);
+  // Serverless: capturar el fallo del cold start. Si Atlas tarda/hipo en el arranque,
+  // el rechazo de la conexión base se logueaba como unhandledRejection (mechanism
+  // auto.node.onunhandledrejection en Sentry) y podía 500 la invocación. Con el .catch
+  // se loguea y listo; mongoose bufferea las queries y reintenta en la próxima request.
+  // Simétrico a como connectControlPlane() ya se maneja con .catch en api/index.js.
+  baseConnection.asPromise().catch((err) => console.error('Error conectando al data plane (base):', err.message));
   return baseConnection;
 }
 
