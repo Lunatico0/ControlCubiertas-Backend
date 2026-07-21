@@ -5,7 +5,11 @@ import { httpError } from '../utils/httpError.js';
 
 // Config de la empresa (tenant) editable por el tenant-admin. Campos del sistema
 // (dbName, plan, status) NO se tocan acá — solo los administra el provisioning/super-admin.
-const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses', 'receiptDesign'];
+const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses', 'receiptDesign', 'plateSeparator'];
+
+// Separadores de patente permitidos: vacío (ninguno) o UN solo carácter razonable. Evita que
+// se cuele texto/alfanuméricos que romperían el display o el round-trip con la patente normalizada.
+const PLATE_SEP_OK = /^[-_.\/·: ]$/;
 
 // Devuelve el tenant como objeto plano con stockStatuses siempre en la forma [{name,role}]
 // (normaliza legacy [String] en lectura, sin tocar la DB).
@@ -55,6 +59,13 @@ export async function updateCompany(tenantId, data) {
           throw httpError(`No se puede eliminar o renombrar el estado "${name}": ${count} cubierta(s) lo usan. Reasignalas primero.`, 400);
         }
       }
+    }
+  }
+
+  if ('plateSeparator' in update) {
+    const sep = update.plateSeparator;
+    if (typeof sep !== 'string' || (sep !== '' && !PLATE_SEP_OK.test(sep))) {
+      throw httpError('Separador de patente inválido: usá un solo carácter razonable (ej. "-", ".", "/", espacio) o dejalo vacío.', 400);
     }
   }
 

@@ -125,4 +125,13 @@ describe('company.service (config de empresa + estados configurables)', () => {
     expect(c.status).toBe('active');
     expect(c.name).toBe('Solo nombre');
   });
+
+  it('updateCompany persiste plateSeparator válido y RECHAZA uno inválido', async () => {
+    const ok = await updateCompany(tenant._id, { plateSeparator: '-' });
+    expect(ok.plateSeparator).toBe('-');
+    const empty = await updateCompany(tenant._id, { plateSeparator: '' });
+    expect(empty.plateSeparator).toBe('');
+    await expect(updateCompany(tenant._id, { plateSeparator: 'AB' })).rejects.toThrow(/separador/i);
+    await expect(updateCompany(tenant._id, { plateSeparator: '4' })).rejects.toThrow(/separador/i);
+  });
 });

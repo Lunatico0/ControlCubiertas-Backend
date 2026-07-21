@@ -16,6 +16,9 @@ export const tenantSchema = new mongoose.Schema(
     // Preferencias operativas (aplican a toda la operación del tenant)
     receiptPrefix: { type: String, default: '0001' },
     receiptFooter: { type: String },
+    // Separador de patente para DISPLAY (la patente se guarda normalizada, sin separadores).
+    // "" = sin separador; "-" muestra "EEQ541" como "EEQ-541". Configurable desde el panel admin.
+    plateSeparator: { type: String, default: '' },
     // Estados de cubierta configurables por tenant. Rol estable (initial/stock/recap/discard)
     // que sobrevive al renombre; el orden del array define la escalera. initial y discard
     // son obligatorios (validado en company.service). Ver utils/statuses.js.
