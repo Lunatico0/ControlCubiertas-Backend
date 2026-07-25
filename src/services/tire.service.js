@@ -8,8 +8,10 @@ import { httpError } from '../utils/httpError.js';
 class TireService {
   async getAll(db, statuses = []) {
     const tires = await db.Tire.find().populate('vehicle').lean();
+    // Un tenant recién creado NO tiene cubiertas: eso es un estado válido (lista vacía),
+    // no un error. Devolver [] evita el 500 en la primera pantalla de un cliente nuevo.
     if (!tires || tires.length === 0) {
-      throw new Error('No se encontraron cubiertas');
+      return [];
     }
 
     // Escalera de recapado: nombre → nivel (Nueva=0, 1er=1, 2do=2, ...). Solo cuentan los

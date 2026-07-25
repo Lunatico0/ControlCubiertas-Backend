@@ -19,6 +19,10 @@ export const tenantSchema = new mongoose.Schema(
     // Separador de patente para DISPLAY (la patente se guarda normalizada, sin separadores).
     // "" = sin separador; "-" muestra "EEQ541" como "EEQ-541". Configurable desde el panel admin.
     plateSeparator: { type: String, default: '' },
+    // Prefijo del código interno de cubierta para DISPLAY (el code se guarda como Number
+    // autoincremental). "" = sin prefijo; "TMBC-" muestra el code 12 como "TMBC-12".
+    // Configurable desde el panel admin. Ver utils/tireCode en el frontend.
+    tireCodePrefix: { type: String, default: '' },
     // Estados de cubierta configurables por tenant. Rol estable (initial/stock/recap/discard)
     // que sobrevive al renombre; el orden del array define la escalera. initial y discard
     // son obligatorios (validado en company.service). Ver utils/statuses.js.

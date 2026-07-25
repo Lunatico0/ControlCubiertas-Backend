@@ -23,6 +23,7 @@ beforeAll(async () => {
   await getControlModels().Tenant.findByIdAndUpdate(tenant._id, {
     cuit: '30-12345678-9', phone: '+54 351 555', address: 'Ruta 9 Km 42', receiptFooter: 'Pie del comprobante',
     receiptDesign: { accent: '#2358C5', duplicado: false, logo: 'data:image/png;base64,AAA' },
+    plateSeparator: '-', tireCodePrefix: 'TMBC-',
   });
 });
 
@@ -43,6 +44,13 @@ describe('GET /api/company — empresa + receiptDesign para impresión', () => {
     expect(res.body.receiptFooter).toBe('Pie del comprobante');
     expect(res.body.receiptDesign.accent).toBe('#2358C5');
     expect(res.body.receiptDesign.duplicado).toBe(false);
+  });
+
+  it('incluye plateSeparator y tireCodePrefix (la operativa los necesita para máscara/código)', async () => {
+    const res = await request(app).get('/api/company').set(authOperator);
+    expect(res.status).toBe(200);
+    expect(res.body.plateSeparator).toBe('-');
+    expect(res.body.tireCodePrefix).toBe('TMBC-');
   });
 
   it('sin token → 401', async () => {

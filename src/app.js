@@ -6,7 +6,7 @@ import { config } from 'dotenv';
 import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
 import { connectControlPlane } from './db/controlPlane.js';
 import { attachDb } from './middleware/attachDb.js';
-import { authenticate } from './middleware/auth.middleware.js';
+import { authenticate, requireActiveTenant } from './middleware/auth.middleware.js';
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import companyRoutes from './routes/company.routes.js';
@@ -53,12 +53,13 @@ app.use(async (req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 // Lectura de empresa (datos + receiptDesign) para cualquier rol autenticado — para imprimir.
-app.use('/api/company', authenticate, companyRoutes);
+app.use('/api/company', authenticate, requireActiveTenant, companyRoutes);
 
-// Rutas de negocio: authenticate (verifica JWT) -> attachDb (resuelve la DB del tenant).
-app.use('/api/tires', authenticate, attachDb, tireRoutes);
-app.use('/api/vehicles', authenticate, attachDb, vehicleRoutes);
-app.use('/api/orders', authenticate, attachDb, orderRoutes);
+// Rutas de negocio: authenticate (verifica JWT) -> requireActiveTenant (tenant existe/activo)
+// -> attachDb (resuelve la DB del tenant).
+app.use('/api/tires', authenticate, requireActiveTenant, attachDb, tireRoutes);
+app.use('/api/vehicles', authenticate, requireActiveTenant, attachDb, vehicleRoutes);
+app.use('/api/orders', authenticate, requireActiveTenant, attachDb, orderRoutes);
 
 // Rutas básicas
 app.get('/', (req, res) => {

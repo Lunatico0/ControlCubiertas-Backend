@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import AdminController from '../controller/admin.controller.js';
-import { authenticate, requireRole } from '../middleware/auth.middleware.js';
+import { authenticate, requireRole, requireActiveTenant } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.js';
 import { createUserSchema, setUserStatusSchema, updateUserSchema, updateCompanySchema } from '../validators/user.validator.js';
 
 const router = Router();
 
 // Todo el panel es admin-only y opera sobre el control plane (NO usa attachDb).
-router.use(authenticate, requireRole('tenant-admin'));
+router.use(authenticate, requireActiveTenant, requireRole('tenant-admin'));
 
 router.get('/users', (req, res, next) => AdminController.listUsers(req, res, next));
 router.post('/users', validate(createUserSchema), (req, res, next) => AdminController.createUser(req, res, next));

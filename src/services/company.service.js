@@ -5,11 +5,16 @@ import { httpError } from '../utils/httpError.js';
 
 // Config de la empresa (tenant) editable por el tenant-admin. Campos del sistema
 // (dbName, plan, status) NO se tocan acá — solo los administra el provisioning/super-admin.
-const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses', 'receiptDesign', 'plateSeparator'];
+const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses', 'receiptDesign', 'plateSeparator', 'tireCodePrefix'];
 
 // Separadores de patente permitidos: vacío (ninguno) o UN solo carácter razonable. Evita que
 // se cuele texto/alfanuméricos que romperían el display o el round-trip con la patente normalizada.
 const PLATE_SEP_OK = /^[-_.\/·: ]$/;
+
+// Prefijo del código interno de cubierta: vacío o hasta 10 caracteres alfanuméricos + separadores
+// comunes. Es solo DISPLAY (el code sigue siendo un Number autoincremental); esto evita que se
+// cuele texto raro que rompa el layout del comprobante o el ancho de las grillas.
+const TIRE_PREFIX_OK = /^[A-Za-z0-9\-_.\/ ]{0,10}$/;
 
 // Devuelve el tenant como objeto plano con stockStatuses siempre en la forma [{name,role}]
 // (normaliza legacy [String] en lectura, sin tocar la DB).
@@ -66,6 +71,13 @@ export async function updateCompany(tenantId, data) {
     const sep = update.plateSeparator;
     if (typeof sep !== 'string' || (sep !== '' && !PLATE_SEP_OK.test(sep))) {
       throw httpError('Separador de patente inválido: usá un solo carácter razonable (ej. "-", ".", "/", espacio) o dejalo vacío.', 400);
+    }
+  }
+
+  if ('tireCodePrefix' in update) {
+    const prefix = update.tireCodePrefix;
+    if (typeof prefix !== 'string' || (prefix !== '' && !TIRE_PREFIX_OK.test(prefix))) {
+      throw httpError('Prefijo de código interno inválido: usá hasta 10 caracteres alfanuméricos o separadores comunes (ej. "T-", "CUB/"), o dejalo vacío.', 400);
     }
   }
 

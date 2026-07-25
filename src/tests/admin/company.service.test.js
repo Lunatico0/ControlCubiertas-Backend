@@ -134,4 +134,15 @@ describe('company.service (config de empresa + estados configurables)', () => {
     await expect(updateCompany(tenant._id, { plateSeparator: 'AB' })).rejects.toThrow(/separador/i);
     await expect(updateCompany(tenant._id, { plateSeparator: '4' })).rejects.toThrow(/separador/i);
   });
+
+  it('updateCompany persiste tireCodePrefix válido y RECHAZA uno inválido', async () => {
+    const ok = await updateCompany(tenant._id, { tireCodePrefix: 'T-' });
+    expect(ok.tireCodePrefix).toBe('T-');
+    const empty = await updateCompany(tenant._id, { tireCodePrefix: '' });
+    expect(empty.tireCodePrefix).toBe('');
+    // > 10 caracteres → rechazo
+    await expect(updateCompany(tenant._id, { tireCodePrefix: 'DEMASIADOLARGO123' })).rejects.toThrow(/prefijo/i);
+    // caracteres fuera del set permitido (ej. "*") → rechazo
+    await expect(updateCompany(tenant._id, { tireCodePrefix: 'A*B' })).rejects.toThrow(/prefijo/i);
+  });
 });

@@ -18,6 +18,8 @@ router.get('/', async (req, res) => {
       receiptFooter: c.receiptFooter,
       receiptDesign: c.receiptDesign,
       stockStatuses: c.stockStatuses,
+      plateSeparator: c.plateSeparator,
+      tireCodePrefix: c.tireCodePrefix,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -46,6 +46,11 @@ export const updateCompanySchema = z.object({
   address: z.string().optional(),
   receiptPrefix: z.string().optional(),
   receiptFooter: z.string().optional(),
+  // Preferencias de DISPLAY (el formato fino lo valida company.service para no duplicar reglas).
+  // DEBEN estar declaradas acá: validate() reemplaza req.body con lo parseado y Zod strippea las
+  // claves no declaradas, así que un campo ausente del schema se guarda como 200 pero NO persiste.
+  plateSeparator: z.string().optional(),
+  tireCodePrefix: z.string().optional(),
   stockStatuses: z
     .array(z.object({ name: z.string().min(1), role: z.enum(['initial', 'stock', 'recap', 'discard']), color: z.string().optional() }))
     .optional(),
