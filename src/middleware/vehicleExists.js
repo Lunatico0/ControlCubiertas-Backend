@@ -1,9 +1,20 @@
-export const validateVehicleExists = async (req, res, next) => {
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { httpError } from '../utils/httpError.js';
+
+// asyncHandler NO es opcional acá: en Express 4 una promesa rechazada dentro de un middleware
+// async no llega al handler de errores, queda como unhandled rejection y la request NUNCA
+// responde. Un `:id` malformado (`findById('abc')` → CastError) alcanzaba para colgar la
+// conexión hasta el timeout del cliente, y en serverless para quemar la invocación entera.
+export const validateVehicleExists = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
+    // Un id que ni siquiera tiene forma de ObjectId es input inválido, no "no encontrado".
+    if (!req.db.Vehicle.base.Types.ObjectId.isValid(id)) {
+        throw httpError('Identificador inválido', 400, 'id');
+    }
     const vehicle = await req.db.Vehicle.findById(id);
     if (!vehicle) {
-        return res.status(404).json({ message: 'Vehículo no encontrado' });
+        throw httpError('Vehículo no encontrado', 404);
     }
     req.vehicle = vehicle;
     next();
-};
+});

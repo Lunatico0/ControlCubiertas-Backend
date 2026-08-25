@@ -223,6 +223,11 @@ class TireService {
   async correctData(db, tireId, data) {
     const tire = await this.getDocById(db, tireId);
     const allowedFields = ['serialNumber', 'code', 'size', 'brand', 'pattern'];
+    // La ruta todavía no tiene schema Zod: sin este guard, un body sin `form` tiraba un
+    // TypeError de destructuring que salía como 500 con el detalle interno adentro.
+    if (!data || typeof data.form !== 'object' || data.form === null) {
+      throw httpError('Falta el bloque "form" con los datos de la corrección', 400, 'form');
+    }
     const { reason, date, orderNumber } = data.form;
 
     const previousData = {};

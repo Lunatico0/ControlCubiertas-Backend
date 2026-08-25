@@ -13,6 +13,7 @@ import companyRoutes from './routes/company.routes.js';
 import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 import orderRoutes from './routes/order.routes.js';
+import { httpError } from './utils/httpError.js';
 
 config();
 
@@ -94,6 +95,22 @@ if (sentryEnabled) Sentry.setupExpressErrorHandler(app);
 // tiran httpError(message, status, field); acá se serializa. Solo se loguea el 5xx (una falla
 // real del server); un 4xx es input inválido esperado, no ruido de consola.
 app.use((err, req, res, next) => {
+  // Red de seguridad: dos errores de Mongo que, si se serializan crudos, filtran interna del
+  // multi-tenant. El E11000 incluye "collection: <dbName>.<coleccion>", o sea el nombre de la
+  // base del tenant. Cada endpoint debería pre-chequear con un mensaje propio; esto cubre el
+  // que se olvide.
+  if (err?.code === 11000) {
+    const campo = Object.keys(err.keyValue || {})[0];
+    const valor = campo ? err.keyValue[campo] : undefined;
+    err = httpError(
+      campo ? `Ya existe un registro con ese valor de "${campo}"${valor !== undefined ? ` (${valor})` : ''}` : 'Ya existe un registro con esos datos',
+      400,
+      campo,
+    );
+  } else if (err?.name === 'CastError') {
+    err = httpError('Identificador inválido', 400, err.path);
+  }
+
   const status = err.status || 500;
   if (status >= 500) console.error(err);
   res.status(status).json({

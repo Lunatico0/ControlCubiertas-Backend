@@ -2,6 +2,7 @@ import TireService from '../services/tire.service.js';
 import { getTenantStatuses } from '../services/company.service.js';
 import { roleOf } from '../utils/statuses.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { httpError } from '../utils/httpError.js';
 
 // Valida que un status pertenezca a los estados configurados del tenant (reemplaza al enum
 // fijo que se removió del modelo). Devuelve un mensaje de error o null si es válido.
@@ -9,6 +10,16 @@ async function invalidStatus(tenantId, status) {
   const statuses = await getTenantStatuses(tenantId);
   const valid = new Set(statuses.map((s) => s.name));
   return valid.has(status) ? null : `Estado "${status}" no válido para esta empresa.`;
+}
+
+// Pre-check de código duplicado, mismo criterio que assertVehicleUnique en vehículos: mensaje
+// amable en vez de dejar explotar el índice único, que filtraría el E11000 crudo de Mongo con
+// el nombre de la DB del tenant adentro. `field` le dice al front qué campo marcar en rojo.
+async function assertTireCodeUnique(db, code) {
+  if (code === undefined || code === null) return;
+  if (await db.Tire.findOne({ code })) {
+    throw httpError(`Ya existe una cubierta con el código ${code}`, 400, 'code');
+  }
 }
 
 class TireController {
@@ -30,11 +41,17 @@ class TireController {
     try {
       const bad = await invalidStatus(req.auth.tenantId, req.body.status);
       if (bad) return res.status(400).json({ message: bad });
+      await assertTireCodeUnique(req.db, req.body.code);
       const tire = await TireService.createTire(req.db, req.body);
       res.status(201).json(tire);
     } catch (error) {
+      // Un error con `status` propio ya trae mensaje de negocio; el resto se loguea y sale
+      // como 400 genérico, sin devolverle al cliente el texto interno de Mongo.
+      if (error.status) {
+        return res.status(error.status).json({ message: error.message, ...(error.field ? { field: error.field } : {}) });
+      }
       console.error('Error en create:', error);
-      res.status(400).json({ message: error.message });
+      res.status(400).json({ message: 'No se pudo crear la cubierta. Revisá los datos e intentá de nuevo.' });
     }
   }
 
