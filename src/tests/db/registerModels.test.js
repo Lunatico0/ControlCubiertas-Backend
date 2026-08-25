@@ -17,13 +17,14 @@ describe('registerModels(conn)', () => {
     await mongod.stop();
   });
 
-  it('registra los 4 modelos de negocio sobre la conexión dada', () => {
+  it('registra los modelos de negocio sobre la conexión dada', () => {
     const models = registerModels(conn);
     expect(Object.keys(models).sort()).toEqual([
       'History',
       'ReceiptCounter',
       'Tire',
       'Vehicle',
+      'VehicleType',
     ]);
   });
 

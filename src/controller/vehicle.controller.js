@@ -156,7 +156,10 @@ class VehicleController {
         })
       );
 
-      newVehicle.tires = tires;
+      // Sólo las cubiertas que EXISTEN. El loop de arriba saltea las que no, así que copiar
+      // el array del body tal cual metía refs colgadas en vehicle.tires[] desde el alta.
+      const existentes = await req.db.Tire.find({ _id: { $in: tires } }).select('_id');
+      newVehicle.tires = existentes.map((t) => t._id);
       await newVehicle.save();
 
       res.status(201).json(newVehicle);
@@ -240,7 +243,11 @@ class VehicleController {
         }
       }
 
-      vehicle.tires = tires;
+      // Sin este save() el array quedaba sólo en el documento en memoria: se respondía 200 con
+      // el estado viejo y los dos lados de la relación quedaban en desacuerdo permanente.
+      const asignadas = await req.db.Tire.find({ _id: { $in: tires } }).select('_id');
+      vehicle.tires = asignadas.map((t) => t._id);
+      await vehicle.save();
 
       const populatedVehicle = await req.db.Vehicle.findById(id).populate("tires");
       res.json(populatedVehicle);

@@ -25,13 +25,14 @@ describe('tenantConnections — DB-per-tenant', () => {
     expect(a.conn).toBe(b.conn);
   });
 
-  it('expone los 4 modelos por tenant', () => {
+  it('expone los modelos de negocio por tenant', () => {
     const { models } = getTenantDb('tenant_models');
     expect(Object.keys(models).sort()).toEqual([
       'History',
       'ReceiptCounter',
       'Tire',
       'Vehicle',
+      'VehicleType',
     ]);
   });
 

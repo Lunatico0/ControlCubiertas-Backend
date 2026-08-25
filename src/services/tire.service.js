@@ -1,4 +1,5 @@
 import { toCorrectionType, recalculateTireState, updateTireFromState, addHistoryEntry } from '../utils/utils.js';
+import { reconcileTireVehicleLinks } from '../utils/vehicleTires.js';
 import { generatePositions } from '../utils/axles.js';
 import { httpError } from '../utils/httpError.js';
 
@@ -394,6 +395,8 @@ class TireService {
     updateTireFromState(tire, finalState); // Aplicar estado final
 
     await tire.save();
+    // Corregir un movimiento puede cambiar de vehículo (o sacarla de todos): alinear el otro lado.
+    await reconcileTireVehicleLinks(db, tire);
     await tire.populate('vehicle');
 
     return {
@@ -464,6 +467,8 @@ class TireService {
     updateTireFromState(tire, finalState);
 
     await tire.save();
+    // `tire.vehicle` acaba de recalcularse desde el historial: alinear el otro lado.
+    await reconcileTireVehicleLinks(db, tire);
     await tire.populate('vehicle');
 
     return {
