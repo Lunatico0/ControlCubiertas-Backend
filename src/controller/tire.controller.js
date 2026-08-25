@@ -133,6 +133,16 @@ class TireController {
   updateHistory = asyncHandler(async (req, res) => {
     const { id, historyId } = req.params;
 
+    // Corregir una entrada puede reescribir el status de la cubierta. Sin este chequeo se podía
+    // dejar la cubierta en un estado que NO existe en la config del tenant: roleOf() devuelve
+    // undefined, la cubierta se cae de la escalera de recapado, desaparece de los reportes por
+    // rol y esquiva el guard de "A recapar". Mismo criterio que create y updateStatus.
+    const nuevoStatus = req.body?.form?.status;
+    if (nuevoStatus !== undefined && nuevoStatus !== null) {
+      const bad = await invalidStatus(req.auth.tenantId, nuevoStatus);
+      if (bad) throw httpError(bad, 400, 'status');
+    }
+
     const { tire, ...rest } = await TireService.correctHistoryEntry(req.db, id, historyId, req.body);
 
     res.status(200).json({ message: 'Historial actualizado correctamente.', tire, ...rest });
