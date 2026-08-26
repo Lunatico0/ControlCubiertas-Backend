@@ -155,10 +155,10 @@ class TireController {
     const { id, historyId } = req.params;
     const formData = req.body;
 
-    const { tire, newEntry, correctedEntryId } = await TireService.undoHistoryEntry(req.db, id, historyId, formData);
+    const { tire, newEntry, correctedEntryId, receiptNumber } = await TireService.undoHistoryEntry(req.db, id, historyId, formData);
 
     res.status(200).json({
-      message: 'Entrada de historial deshecha correctamente.', tire, newEntry, correctedEntryId
+      message: 'Entrada de historial deshecha correctamente.', tire, newEntry, correctedEntryId, receiptNumber
     });
   });
 }

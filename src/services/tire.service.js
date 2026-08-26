@@ -278,6 +278,9 @@ class TireService {
 
     const parsedDate = date && !isNaN(new Date(date)) ? new Date(date) : new Date();
 
+    // Después del guard de "no se detectaron cambios": una corrección vacía no gasta número.
+    const numero = await reservarNumeroComprobante(db, data.form.receiptNumber);
+
     await addHistoryEntry(db.History, tire._id, {
       type: 'Corrección-Alta',
       date: parsedDate,
@@ -288,7 +291,7 @@ class TireService {
       reason,
       orderNumber: orderNumber || null,
       flag: true,
-      receiptNumber: data.form.receiptNumber
+      receiptNumber: numero
     });
 
     await tire.save();
@@ -298,7 +301,8 @@ class TireService {
       previousData,
       editedFields,
       fieldChanges,
-      tire
+      tire,
+      receiptNumber: numero
     };
   }
 
@@ -310,7 +314,7 @@ class TireService {
     const history = await db.History.find({ tire: tire._id }).sort({ date: 1 });
     const originalOrder = original.orderNumber;
     const correctionOrder = updates.form.orderNumber;
-    const receiptNumber = updates.form.receiptNumber;
+    const receiptNumber = await reservarNumeroComprobante(db, updates.form.receiptNumber);
 
     const reasonOriginal = `Corregido en la orden N°${correctionOrder}`;
     const reasonCorrection = `Corrección de Orden N°${originalOrder}`;
@@ -429,12 +433,15 @@ class TireService {
   };
 
   async undoHistoryEntry(db, tireId, historyId, formData) {
-    const { orderNumber, receiptNumber } = formData;
+    const { orderNumber } = formData;
 
     const tire = await this.getDocById(db, tireId);
     const history = await db.History.find({ tire: tire._id }).sort({ date: 1 });
     const original = await db.History.findById(historyId).populate('vehicle').populate('corrects');
     if (!original) throw new Error("Entrada de historial no encontrada");
+
+    // Después de confirmar que la entrada existe: un deshacer sobre un id inválido no gasta número.
+    const receiptNumber = await reservarNumeroComprobante(db, formData.receiptNumber);
 
     // Definir razones
     const reasonOriginal = `Deshecho en la orden N°${orderNumber}`;
@@ -497,7 +504,8 @@ class TireService {
       tire,
       correctedEntryId: historyId,
       newEntry: revertedData.newEntry,
-      revertedTo: revertedData.revertedTo
+      revertedTo: revertedData.revertedTo,
+      receiptNumber
     };
   }
 
