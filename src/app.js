@@ -2,6 +2,8 @@ import { sentryEnabled } from './instrument.js';
 import express from 'express';
 import * as Sentry from '@sentry/node';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { config } from 'dotenv';
 import { specs, swaggerUi, swaggerUiOptions } from '../swagger-setup.js';
 import { connectControlPlane } from './db/controlPlane.js';
@@ -21,8 +23,34 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middlewares
-app.use(cors());
-app.options('*', cors());
+
+// Cabeceras defensivas. `contentSecurityPolicy` va apagado porque Swagger UI se sirve desde
+// esta misma app y su CSP por defecto le rompe los assets inline; esto es una API JSON, no
+// una web que renderice HTML de terceros. `x-powered-by` se va con helmet.
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+
+// CORS. La lista blanca se configura con CORS_ORIGINS (orígenes separados por coma).
+//
+// SIN esa variable el comportamiento es el histórico (cualquier origen), A PROPÓSITO: adivinar
+// los dominios acá y equivocarse deja sin backend a toda la operación. Setear CORS_ORIGINS en
+// Vercel es lo que cierra la puerta, y hacerlo no requiere tocar código.
+//
+// Las requests SIN cabecera Origin pasan siempre: es el caso de la app de escritorio, que
+// carga por file:// y no manda Origin, además de curl y los health checks.
+const origenesPermitidos = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const corsOptions = origenesPermitidos.length
+  ? {
+      origin: (origin, cb) => cb(null, !origin || origenesPermitidos.includes(origin)),
+      credentials: true,
+    }
+  : {};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
