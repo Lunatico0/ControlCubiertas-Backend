@@ -43,7 +43,9 @@ class TireController {
       if (bad) return res.status(400).json({ message: bad });
       await assertTireCodeUnique(req.db, req.body.code);
       const tire = await TireService.createTire(req.db, req.body);
-      res.status(201).json(tire);
+      // receiptNumber NO es un path del schema, así que hay que sumarlo a mano: serializar el
+      // documento pelado lo perdería y el front no tendría con qué imprimir el comprobante.
+      res.status(201).json({ ...tire.toObject(), receiptNumber: tire.receiptNumber });
     } catch (error) {
       // Un error con `status` propio ya trae mensaje de negocio; el resto se loguea y sale
       // como 400 genérico, sin devolverle al cliente el texto interno de Mongo.
@@ -65,7 +67,8 @@ class TireController {
     const result = await TireService.updateTireStatus(req.db, id, status, orderNumber, receiptNumber);
     res.status(200).json({
       message: `Estado actualizado de "${result.previousStatus}" a "${status}".`,
-      tire: result.tire
+      tire: result.tire,
+      receiptNumber: result.receiptNumber
     });
   });
 
@@ -86,7 +89,7 @@ class TireController {
     }
 
     const tire = await TireService.assignVehicle(req.db, id, vehicle, kmAlta, orderNumber, receiptNumber, position);
-    res.status(200).json({ message: 'Cubierta asignada correctamente', tire });
+    res.status(200).json({ message: 'Cubierta asignada correctamente', tire, receiptNumber: tire.receiptNumber });
   });
 
   unassignVehicle = asyncHandler(async (req, res) => {

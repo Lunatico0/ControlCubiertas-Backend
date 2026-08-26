@@ -2,6 +2,7 @@ import { toCorrectionType, recalculateTireState, updateTireFromState, addHistory
 import { reconcileTireVehicleLinks } from '../utils/vehicleTires.js';
 import { generatePositions } from '../utils/axles.js';
 import { httpError } from '../utils/httpError.js';
+import { reservarNumeroComprobante } from '../utils/receipt.js';
 
 // Los modelos llegan por `db` (inyectado por el middleware attachDb) en vez de importarse
 // globalmente. Esto habilita DB-per-tenant: el mismo service opera sobre la conexión del
@@ -104,6 +105,10 @@ class TireService {
 
     await newTire.save();
 
+    // El número se reserva recién ACÁ, con la cubierta ya guardada: un alta rechazada no deja
+    // un hueco en el correlativo.
+    const numero = await reservarNumeroComprobante(db, receiptNumber);
+
     await db.History.create({
       tire: newTire._id,
       vehicle: vehicle || null,
@@ -112,7 +117,7 @@ class TireService {
       date: entryDate,
       type: 'Alta',
       orderNumber: orderNumber || null,
-      receiptNumber
+      receiptNumber: numero
     });
 
     if (vehicle) {
@@ -120,6 +125,7 @@ class TireService {
         $addToSet: { tires: newTire._id }
       });
     }
+    newTire.receiptNumber = numero; // no se persiste: viaja en la respuesta para imprimir
     return newTire;
   }
 
@@ -141,6 +147,10 @@ class TireService {
     tire.position = position || null;
     vehicle.tires.push(tire._id);
 
+    // Después de los guards de posición ocupada / cubierta ya asignada: si alguno rebota, el
+    // correlativo queda intacto.
+    const numero = await reservarNumeroComprobante(db, receiptNumber);
+
     await addHistoryEntry(db.History, tire._id, {
       type: 'Asignación',
       vehicle: vehicleId,
@@ -148,12 +158,13 @@ class TireService {
       position: position || null,
       kmAlta,
       orderNumber: orderNumber || null,
-      receiptNumber
+      receiptNumber: numero
     });
 
     await vehicle.save();
     await tire.save();
     await tire.populate('vehicle');
+    tire.receiptNumber = numero; // no se persiste: viaja en la respuesta para imprimir
     return tire;
   }
 
@@ -171,6 +182,9 @@ class TireService {
 
     if (kmRecorridos < 0) throw httpError('Kilometraje de baja no puede ser menor que el de alta', 400);
 
+    // Recién acá, pasado el control de kilometraje: es justo el rechazo que quemaba números.
+    const numero = await reservarNumeroComprobante(db, receiptNumber);
+
     tire.vehicle = null;
     tire.position = null; // al bajar del vehículo, la cubierta deja su posición libre
     tire.kilometers += kmRecorridos;
@@ -183,7 +197,7 @@ class TireService {
       kmAlta,
       vehicle: null,
       orderNumber: orderNumber || null,
-      receiptNumber
+      receiptNumber: numero
     });
 
     const updatedHistory = await db.History.find({ tire: tireId }).sort({ date: 1 });
@@ -198,7 +212,8 @@ class TireService {
       tire,
       kmAlta,
       kmBaja,
-      kmRecorridos
+      kmRecorridos,
+      receiptNumber: numero
     };
   }
 
@@ -208,16 +223,18 @@ class TireService {
 
     tire.status = status;
 
+    const numero = await reservarNumeroComprobante(db, receiptNumber);
+
     await addHistoryEntry(db.History, tire._id, {
       type: 'Estado',
       vehicle: tire.vehicle,
       status,
       orderNumber: orderNumber || null,
-      receiptNumber
+      receiptNumber: numero
     });
 
     await tire.save();
-    return { tire, previousStatus };
+    return { tire, previousStatus, receiptNumber: numero };
   }
 
   async correctData(db, tireId, data) {
