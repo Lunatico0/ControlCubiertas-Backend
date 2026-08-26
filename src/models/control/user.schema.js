@@ -12,6 +12,10 @@ export const userSchema = new mongoose.Schema(
     role: { type: String, enum: ['tenant-admin', 'operator'], default: 'operator' },
     status: { type: String, enum: ['active', 'inactive'], default: 'active' },
     mustChangePassword: { type: Boolean, default: false },
+    // Se incrementa en cada cambio de contraseña (voluntario, de primer ingreso o reset del
+    // admin). El refresh token lleva el valor con el que se emitió: si no coincide con el
+    // actual, refresh() lo rechaza. Es lo que corta las sesiones vivas de un password robado.
+    tokenVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

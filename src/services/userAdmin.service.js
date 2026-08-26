@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { getControlModels } from '../db/controlPlane.js';
-import { hashPassword } from './auth.service.js';
+import { hashPassword, bumpTokenVersion } from './auth.service.js';
 import { httpError } from '../utils/httpError.js';
 
 // Gestión de usuarios del tenant (control plane). Toda operación está scopeada al
@@ -77,6 +77,7 @@ export async function resetPassword(tenantId, userId) {
   const tempPassword = crypto.randomBytes(6).toString('hex');
   user.passwordHash = await hashPassword(tempPassword);
   user.mustChangePassword = true;
+  bumpTokenVersion(user); // el reset existe para expulsar al que tenga la contraseña vieja
   await user.save();
 
   const safe = await User.findById(user._id).select(PUBLIC);

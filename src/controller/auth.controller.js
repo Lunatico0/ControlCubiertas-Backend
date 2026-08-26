@@ -23,8 +23,10 @@ class AuthController {
   }
 
   changePassword = asyncHandler(async (req, res) => {
-    await authService.changePassword(getControlModels(), req.auth.userId, req.body.currentPassword, req.body.newPassword);
-    res.json({ message: 'Contraseña actualizada' });
+    // Los tokens devueltos reemplazan a los de la sesión actual: el cambio de contraseña
+    // invalida los refresh vivos del usuario, este incluido.
+    const tokens = await authService.changePassword(getControlModels(), req.auth.userId, req.body.currentPassword, req.body.newPassword);
+    res.json({ message: 'Contraseña actualizada', ...tokens });
   });
 }
 
