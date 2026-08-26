@@ -2,7 +2,15 @@ import express from 'express';
 import TireController from '../controller/tire.controller.js';
 import { validateTireExists } from '../middleware/tireExists.js';
 import { validate } from '../middleware/validate.js';
-import { createTireSchema } from '../validators/tire.validator.js';
+import {
+  createTireSchema,
+  updateTireStatusSchema,
+  assignTireSchema,
+  unassignTireSchema,
+  correctTireSchema,
+  correctHistorySchema,
+  undoHistorySchema,
+} from '../validators/tire.validator.js';
 
 const router = express.Router();
 
@@ -189,7 +197,7 @@ router.post('/', validate(createTireSchema), TireController.create);
  *       500:
  *         description: Error del servidor
  */
-router.patch('/:id/status', validateTireExists, TireController.updateStatus);
+router.patch('/:id/status', validate(updateTireStatusSchema), validateTireExists, TireController.updateStatus);
 
 /**
  * @swagger
@@ -239,7 +247,7 @@ router.patch('/:id/status', validateTireExists, TireController.updateStatus);
  *       404:
  *         description: Cubierta no encontrada
  */
-router.patch('/:id/assign', validateTireExists, TireController.assignVehicle);
+router.patch('/:id/assign', validate(assignTireSchema), validateTireExists, TireController.assignVehicle);
 
 /**
  * @swagger
@@ -291,7 +299,7 @@ router.patch('/:id/assign', validateTireExists, TireController.assignVehicle);
  *       404:
  *         description: Cubierta no encontrada
  */
-router.patch('/:id/unassign', validateTireExists, TireController.unassignVehicle);
+router.patch('/:id/unassign', validate(unassignTireSchema), validateTireExists, TireController.unassignVehicle);
 
 /**
  * @swagger
@@ -353,7 +361,7 @@ router.patch('/:id/unassign', validateTireExists, TireController.unassignVehicle
  *       404:
  *         description: Cubierta no encontrada
  */
-router.patch('/:id/correct', validateTireExists, TireController.correctData);
+router.patch('/:id/correct', validate(correctTireSchema), validateTireExists, TireController.correctData);
 
 /**
  * @swagger
@@ -419,7 +427,7 @@ router.patch('/:id/correct', validateTireExists, TireController.correctData);
  *       404:
  *         description: Cubierta o entrada de historial no encontrada
  */
-router.patch('/:id/history/:historyId', validateTireExists, TireController.updateHistory);
+router.patch('/:id/history/:historyId', validate(correctHistorySchema), validateTireExists, TireController.updateHistory);
 
 /**
  * @swagger
@@ -470,6 +478,6 @@ router.patch('/:id/history/:historyId', validateTireExists, TireController.updat
  *       404:
  *         description: Cubierta o entrada de historial no encontrada
  */
-router.post('/:id/history/:historyId/undo', validateTireExists, TireController.undoHistoryEntry);
+router.post('/:id/history/:historyId/undo', validate(undoHistorySchema), validateTireExists, TireController.undoHistoryEntry);
 
 export default router;

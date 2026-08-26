@@ -30,3 +30,22 @@ export const createVehicleTypeSchema = z.object({
   name: z.string().min(1),
   axles: z.array(z.enum(['simple', 'dual', 'moto'])).min(1),
 });
+
+const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Identificador inválido');
+
+// PUT /vehicles/details/:id — datos identificatorios del móvil. `mobile` y `licensePlate`
+// son los que se validan por unicidad, así que van obligatorios y sin espacios al borde;
+// sin schema, un body sin `mobile` reventaba en normalizePlate y salía como 500.
+export const updateVehicleDetailsSchema = z.object({
+  mobile: z.string().trim().min(1, 'El número de móvil es obligatorio'),
+  licensePlate: z.string().trim().min(1, 'La patente es obligatoria'),
+  brand: z.string().nullish(),
+  type: z.string().nullish(),
+});
+
+// PUT /vehicles/:id — reemplaza la lista de cubiertas montadas. Los ids se usan en un
+// $in contra la colección de cubiertas: validarlos evita que un string cualquiera llegue
+// al cast de Mongoose.
+export const updateVehicleTiresSchema = z.object({
+  tires: z.array(objectId, { message: 'Debe proporcionar un array válido de cubiertas' }),
+});

@@ -56,3 +56,15 @@ export const updateCompanySchema = z.object({
     .optional(),
   receiptDesign: receiptDesignSchema.optional(),
 });
+
+// El body del login llega sin autenticar y sin filtrar: sin schema, un email que no es string
+// salía como 500 con el error interno adentro ("email?.toLowerCase is not a function"). No era
+// un bypass (el `?.` corta la cadena antes del filtro de Mongo), pero sí una fuga de internals.
+export const loginSchema = z.object({
+  email: z.string().min(1, 'Ingresá tu email'),
+  password: z.string().min(1, 'Ingresá tu contraseña'),
+});
+
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(1, 'refreshToken requerido'),
+});

@@ -41,3 +41,82 @@ export const createTireSchema = z.object({
 // ODÓMETRO DEL MÓVIL y no el de la cubierta, pero las cotas de "ni negativo ni absurdo" aplican igual.
 export const kilometrajeSchema = kilometraje;
 export const fechaNoFuturaSchema = fechaNoFutura;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Schemas de las rutas de mutación que antes no tenían ninguno. Ojo con dos cosas:
+//
+// 1) `validate` REEMPLAZA req.body con lo que devuelve Zod, y Zod strippea todo campo no
+//    declarado. Un campo que falte acá desaparece del body sin error: hay que declarar
+//    TODO lo que el controlador o el servicio leen río abajo.
+// 2) `.strict()` va solo donde un campo de más termina escrito en la base. Es el caso de
+//    `form` en la corrección de historial, porque el servicio hace `...updates.form` dentro
+//    del documento nuevo de History. En el resto se strippea en silencio, que alcanza.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Los números de orden y de comprobante son opcionales en todos los caminos y el front
+// manda null cuando no aplican.
+const referenciaOpcional = z.string().nullish();
+
+export const updateTireStatusSchema = z.object({
+  // La pertenencia al set de estados del tenant la valida el controlador (es configurable
+  // por empresa); acá solo la forma.
+  status: z.string().min(1, 'El estado es obligatorio'),
+  orderNumber: referenciaOpcional,
+  receiptNumber: referenciaOpcional,
+});
+
+const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Identificador inválido');
+
+export const assignTireSchema = z.object({
+  vehicle: objectId,
+  // kmAlta es el ODÓMETRO DEL MÓVIL, no el de la cubierta, pero las cotas aplican igual.
+  kmAlta: kilometraje,
+  position: z.string().nullish(),
+  orderNumber: referenciaOpcional,
+  receiptNumber: referenciaOpcional,
+});
+
+export const unassignTireSchema = z.object({
+  kmBaja: kilometraje,
+  orderNumber: referenciaOpcional,
+  receiptNumber: referenciaOpcional,
+});
+
+// Corrección de los datos de alta. El servicio solo aplica los campos de `allowedFields`,
+// así que acá alcanza con declararlos y no hace falta `.strict()`.
+export const correctTireSchema = z.object({
+  form: z.object({
+    serialNumber: z.string().min(1).optional(),
+    code: z.number().int().positive().optional(),
+    size: z.string().min(1).optional(),
+    brand: z.string().min(1).optional(),
+    pattern: z.string().min(1).optional(),
+    reason: z.string().nullish(),
+    date: z.union([z.string(), z.date()]).nullish(),
+    orderNumber: referenciaOpcional,
+    receiptNumber: referenciaOpcional,
+  }, { error: 'Falta el bloque "form" con los datos de la corrección' }),
+});
+
+// Corrección de una entrada del historial. ACÁ SÍ va `.strict()`: el servicio spreadea
+// `...updates.form` dentro de la entrada nueva de History, así que sin esto el cliente
+// escribe campos arbitrarios directo en la colección.
+export const correctHistorySchema = z.object({
+  form: z
+    .object({
+      kmAlta: kilometraje.optional(),
+      kmBaja: kilometraje.optional(),
+      status: z.string().min(1).optional(),
+      vehicle: z.union([objectId, z.null()]).optional(),
+      reason: z.string().nullish(),
+      orderNumber: referenciaOpcional,
+      receiptNumber: referenciaOpcional,
+    })
+    .strict('Campo no permitido en la corrección de historial'),
+}, { error: 'Falta el bloque "form" con los datos de la corrección' });
+
+export const undoHistorySchema = z.object({
+  reason: z.string().nullish(),
+  orderNumber: referenciaOpcional,
+  receiptNumber: referenciaOpcional,
+});

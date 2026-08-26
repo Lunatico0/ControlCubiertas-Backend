@@ -3,7 +3,7 @@ import VehicleController from '../controller/vehicle.controller.js';
 import { validateVehicleExists } from '../middleware/vehicleExists.js';
 import vehicleController from '../controller/vehicle.controller.js';
 import { validate } from '../middleware/validate.js';
-import { createVehicleSchema, updateAxlesSchema, createVehicleTypeSchema } from '../validators/vehicle.validator.js';
+import { createVehicleSchema, updateAxlesSchema, createVehicleTypeSchema, updateVehicleDetailsSchema, updateVehicleTiresSchema } from '../validators/vehicle.validator.js';
 
 const router = express.Router();
 
@@ -236,7 +236,7 @@ router.post('/', validate(createVehicleSchema), VehicleController.create);
  *                 message:
  *                   type: string
  */
-router.put('/details/:id', validateVehicleExists, vehicleController.updateDetails);
+router.put('/details/:id', validate(updateVehicleDetailsSchema), validateVehicleExists, vehicleController.updateDetails);
 
 /**
  * @swagger
@@ -294,6 +294,6 @@ router.put('/details/:id', validateVehicleExists, vehicleController.updateDetail
  *       404:
  *         description: Vehículo no encontrado
  */
-router.put('/:id', validateVehicleExists, VehicleController.update);
+router.put('/:id', validate(updateVehicleTiresSchema), validateVehicleExists, VehicleController.update);
 
 export default router;
