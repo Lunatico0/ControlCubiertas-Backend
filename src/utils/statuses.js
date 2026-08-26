@@ -1,3 +1,4 @@
+import { httpError } from './httpError.js';
 // Estados de cubierta configurables por tenant. Cada estado tiene un ROL estable que
 // sobrevive al renombre, para que la lógica de negocio no dependa del nombre:
 //   initial → estado de alta (OBLIGATORIO, exactamente 1)
@@ -41,22 +42,22 @@ export function normalizeStatuses(raw) {
 // Valida las invariantes al GUARDAR (estricto, lanza Error con mensaje claro).
 export function assertValidStatuses(statuses) {
   if (!Array.isArray(statuses) || statuses.length === 0) {
-    throw new Error('Debe haber al menos un estado inicial y uno descartado');
+    throw httpError('Debe haber al menos un estado inicial y uno descartado', 400, 'stockStatuses');
   }
   const names = statuses.map((s) => String(s?.name ?? '').trim());
-  if (names.some((n) => !n)) throw new Error('Los nombres de estado no pueden estar vacíos');
+  if (names.some((n) => !n)) throw httpError('Los nombres de estado no pueden estar vacíos', 400, 'stockStatuses');
 
   const seen = new Set();
   for (const n of names) {
     const key = n.toLowerCase();
-    if (seen.has(key)) throw new Error(`Nombre de estado duplicado: "${n}"`);
+    if (seen.has(key)) throw httpError(`Nombre de estado duplicado: "${n}"`, 400, 'stockStatuses');
     seen.add(key);
   }
 
   const count = (role) => statuses.filter((s) => s.role === role).length;
-  if (count('initial') !== 1) throw new Error('Debe existir exactamente un estado inicial (nuevo)');
-  if (count('discard') !== 1) throw new Error('Debe existir exactamente un estado descartado');
-  if (count('recap') > 1) throw new Error('Solo puede haber un estado "a recapar"');
+  if (count('initial') !== 1) throw httpError('Debe existir exactamente un estado inicial (nuevo)', 400, 'stockStatuses');
+  if (count('discard') !== 1) throw httpError('Debe existir exactamente un estado descartado', 400, 'stockStatuses');
+  if (count('recap') > 1) throw httpError('Solo puede haber un estado "a recapar"', 400, 'stockStatuses');
 }
 
 // Lookups por rol/nombre.

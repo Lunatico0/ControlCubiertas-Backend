@@ -141,8 +141,20 @@ app.use((err, req, res, next) => {
 
   const status = err.status || 500;
   if (status >= 500) console.error(err);
+
+  // En los 5xx el mensaje que sale es GENÉRICO. El de un error inesperado es texto técnico y
+  // el cliente no tiene por qué verlo: en producción, un login con el email como objeto
+  // respondía 500 con "email?.toLowerCase is not a function". El schema Zod tapa ese caso
+  // puntual, pero la fuga era del handler y valía para cualquier error que ningún schema
+  // cubriera. El detalle real queda en el log y en Sentry, que es donde sirve.
+  //
+  // Los 4xx SÍ devuelven su mensaje: son los httpError() de negocio, escritos para que los lea
+  // el operario. Por eso primero hubo que pasar a 4xx los ~19 `new Error` de negocio de los
+  // servicios ("Cubierta no encontrada", "No se detectaron cambios"), que caían en el 500 por
+  // descarte: además de quedar mudos con este cambio, hacían que un id inexistente figurara
+  // como falla del servidor y disparara alerta en Sentry.
   res.status(status).json({
-    message: err.message || 'Error interno',
+    message: status >= 500 ? 'Error interno del servidor. Volvé a intentar en unos minutos.' : err.message || 'Error interno',
     ...(err.field ? { field: err.field } : {}),
   });
 });

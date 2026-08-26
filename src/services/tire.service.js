@@ -49,7 +49,7 @@ class TireService {
 
   async getById(db, id) {
     const tire = await db.Tire.findById(id).populate('vehicle');
-    if (!tire) throw new Error('Cubierta no encontrada');
+    if (!tire) throw httpError('Cubierta no encontrada', 404);
 
     const history = await db.History
       .find({ tire: id })
@@ -62,13 +62,13 @@ class TireService {
 
   async getDocById(db, id) {
     const tire = await db.Tire.findById(id).populate('vehicle');
-    if (!tire) throw new Error('Cubierta no encontrada');
+    if (!tire) throw httpError('Cubierta no encontrada', 404);
     return tire;
   }
 
   async findVehicleById(db, id) {
     const vehicle = await db.Vehicle.findById(id);
-    if (!vehicle) throw new Error('Vehículo no encontrado');
+    if (!vehicle) throw httpError('Vehículo no encontrado', 404);
     return vehicle;
   }
 
@@ -87,7 +87,7 @@ class TireService {
       receiptNumber
     } = data;
 
-    if (!serialNumber) throw new Error('El número de serie (serialNumber) es requerido.');
+    if (!serialNumber) throw httpError('El número de serie (serialNumber) es requerido.', 400, 'serialNumber');
 
     const entryDate = createdAt ? new Date(createdAt) : new Date();
 
@@ -273,7 +273,7 @@ class TireService {
     }
 
     if (editedFields.length === 0) {
-      throw new Error("No se detectaron cambios válidos para corregir.");
+      throw httpError('No se detectaron cambios válidos para corregir.', 400);
     }
 
     const parsedDate = date && !isNaN(new Date(date)) ? new Date(date) : new Date();
@@ -320,7 +320,7 @@ class TireService {
     const reasonCorrection = `Corrección de Orden N°${originalOrder}`;
     const userExtra = updates.form.reason?.trim() || '';
 
-    if (!original) throw new Error('Entrada de historial no encontrada');
+    if (!original) throw httpError('Entrada de historial no encontrada', 404);
 
     const compareValues = (a, b) => {
       if ((a == null || a === '') && (b == null || b === '')) return false;
@@ -346,7 +346,7 @@ class TireService {
     });
 
     if (editedFields.length === 0) {
-      throw new Error('No se detectaron cambios para corregir.');
+      throw httpError('No se detectaron cambios para corregir.', 400);
     }
 
     // Marcar original como corregida
@@ -438,7 +438,7 @@ class TireService {
     const tire = await this.getDocById(db, tireId);
     const history = await db.History.find({ tire: tire._id }).sort({ date: 1 });
     const original = await db.History.findById(historyId).populate('vehicle').populate('corrects');
-    if (!original) throw new Error("Entrada de historial no encontrada");
+    if (!original) throw httpError('Entrada de historial no encontrada', 404);
 
     // Después de confirmar que la entrada existe: un deshacer sobre un id inválido no gasta número.
     const receiptNumber = await reservarNumeroComprobante(db, formData.receiptNumber);
@@ -484,10 +484,10 @@ class TireService {
       case 'Alta':
       case 'Corrección-Alta':
         // Deshacer alta = marcar como eliminada (no implementado por seguridad)
-        throw new Error('No se puede deshacer el alta de una cubierta');
+        throw httpError('No se puede deshacer el alta de una cubierta: para eso hay que descartarla.', 409);
 
       default:
-        throw new Error(`Tipo de entrada no soportado para deshacer: ${original.type}`);
+        throw httpError(`Tipo de entrada no soportado para deshacer: ${original.type}`, 400);
     }
 
     // Recalcular estado final
@@ -546,7 +546,7 @@ class TireService {
       );
 
     if (!lastAssignment) {
-      throw new Error('No se encontró asignación anterior para revertir');
+      throw httpError('No se encontró una asignación anterior para revertir', 409);
     }
 
     // Obtener el kmAlta correcto de la última asignación

@@ -27,7 +27,7 @@ function serialize(tenant) {
 export async function getCompany(tenantId) {
   const { Tenant } = getControlModels();
   const tenant = await Tenant.findById(tenantId);
-  if (!tenant) throw new Error('Empresa no encontrada');
+  if (!tenant) throw httpError('Empresa no encontrada', 404);
   return serialize(tenant);
 }
 

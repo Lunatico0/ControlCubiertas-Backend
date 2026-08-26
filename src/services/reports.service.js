@@ -1,6 +1,7 @@
 import { getTenantDb } from '../db/tenantConnections.js';
 import { roleOf } from '../utils/statuses.js';
 import { generatePositions } from '../utils/axles.js';
+import { httpError } from '../utils/httpError.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -188,7 +189,7 @@ export async function getVehicleReports(dbName, statuses = []) {
 export async function getVehicleWear(dbName, vehicleId, statuses = []) {
   const { Vehicle, History, Tire } = getTenantDb(dbName).models;
   const vehicle = await Vehicle.findById(vehicleId).select('mobile licensePlate brand axles').lean();
-  if (!vehicle) throw new Error('Vehículo no encontrado');
+  if (!vehicle) throw httpError('Vehículo no encontrado', 404);
 
   const levelOf = {};
   let lvl = 0;
