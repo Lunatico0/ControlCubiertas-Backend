@@ -151,3 +151,30 @@ describe('el flujo completo con orden válida sigue funcionando', () => {
     expect(desas.status).toBe(200);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// t4 · La fecha de alta no se corre de día (defensa en el backend)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('createdAt: un día suelto no se corre de día (t4)', () => {
+  it('ancla YYYY-MM-DD al mediodía UTC en vez de a la medianoche', async () => {
+    const res = await request(app).post('/api/tires').set(auth).send({
+      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S',
+      serialNumber: `F${seq}`, orderNumber: nuevaOrden(), createdAt: '2026-03-15',
+    });
+    expect(res.status).toBe(201);
+    const guardada = await db.Tire.findOne({ code: seq });
+    const alta = await db.History.findOne({ tire: guardada._id, type: 'Alta' });
+    expect(alta.date.toISOString()).toBe('2026-03-15T12:00:00.000Z');
+  });
+
+  it('deja intacta una fecha que ya trae hora', async () => {
+    const res = await request(app).post('/api/tires').set(auth).send({
+      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S',
+      serialNumber: `G${seq}`, orderNumber: nuevaOrden(), createdAt: '2026-03-15T08:30:00.000Z',
+    });
+    expect(res.status).toBe(201);
+    const guardada = await db.Tire.findOne({ code: seq });
+    const alta = await db.History.findOne({ tire: guardada._id, type: 'Alta' });
+    expect(alta.date.toISOString()).toBe('2026-03-15T08:30:00.000Z');
+  });
+});

@@ -46,8 +46,19 @@ const kilometraje = z
   .min(0, 'El kilometraje no puede ser negativo')
   .max(KM_MAX, `El kilometraje no puede superar los ${KM_MAX.toLocaleString('es-AR')} km`);
 
+// Un input `type="date"` manda un DÍA SUELTO ("2026-03-15") y `new Date()` lo lee como
+// medianoche UTC: en GMT-3 eso ya es el 14 a las 21:00 y la fecha aparece corrida un día
+// atrás en toda la app. Anclarlo al MEDIODÍA UTC deja 12 horas de colchón a cada lado, así
+// que ninguna zona horaria real puede empujarlo a otro día. El frontend hace lo mismo con
+// la hora local (@utils/date); esto es la defensa del lado del servidor, que vale para
+// cualquier cliente. Un valor que ya trae hora pasa intacto.
+const DIA_SUELTO = /^\d{4}-\d{2}-\d{2}$/;
+export const anclarDiaSuelto = (v) =>
+  (typeof v === 'string' && DIA_SUELTO.test(v.trim()) ? `${v.trim()}T12:00:00.000Z` : v);
+
 const fechaNoFutura = z
   .union([z.string(), z.date()])
+  .transform(anclarDiaSuelto)
   .refine((v) => !Number.isNaN(new Date(v).getTime()), 'Fecha inválida')
   .refine((v) => new Date(v).getTime() <= Date.now() + MARGEN_FUTURO_MS, 'La fecha de alta no puede ser futura');
 

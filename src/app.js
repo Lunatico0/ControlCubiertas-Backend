@@ -16,6 +16,11 @@ import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import { httpError } from './utils/httpError.js';
+import { readFileSync } from 'node:fs';
+
+// La versión sale del package.json, no de un literal: el endpoint raíz anunciaba 1.2.0 con el
+// paquete en 2.x, así que no servía para verificar qué está desplegado, que es su único uso.
+const { version: VERSION } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 config();
 
@@ -112,8 +117,8 @@ app.use('/api/orders', authenticate, requireActiveTenant, attachDb, orderRoutes)
 // Rutas básicas
 app.get('/', (req, res) => {
   res.json({
-    message: 'API de Gestión de Cubiertas',
-    version: '1.2.0',
+    message: 'TireOps API',
+    version: VERSION,
     documentation: '/api-docs',
     environment: process.env.NODE_ENV || 'development',
     endpoints: {

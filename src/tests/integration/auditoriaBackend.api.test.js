@@ -371,3 +371,23 @@ describe('Swagger no se monta en producción (t27)', () => {
     expect((await request(app).get('/api-docs/')).status).toBe(404);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// t39 · El endpoint raíz reporta la versión REAL del paquete
+// ─────────────────────────────────────────────────────────────────────────────
+describe('GET / reporta la versión del package.json (t39)', () => {
+  it('no devuelve una versión hardcodeada', async () => {
+    const app = await cargarApp();
+    const { readFileSync } = await import('node:fs');
+    const pkg = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+    const res = await request(app).get('/');
+    expect(res.status).toBe(200);
+    expect(res.body.version).toBe(pkg.version);
+  });
+
+  it('el nombre del producto es TireOps', async () => {
+    const app = await cargarApp();
+    const res = await request(app).get('/');
+    expect(res.body.message).toMatch(/TireOps/i);
+  });
+});
