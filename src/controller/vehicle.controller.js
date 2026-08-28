@@ -1,6 +1,7 @@
 import { addHistoryEntry } from '../utils/utils.js';
 import { buildVehiclePositions, generatePositions } from '../utils/axles.js';
-import { normalizePlate } from '../utils/plate.js';
+import { plateMatcher, assertValidPlate } from '../utils/plate.js';
+import { getTenantPlateFormats } from '../services/company.service.js';
 import { httpError } from '../utils/httpError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -13,7 +14,10 @@ async function assertVehicleUnique(db, { mobile, plate, excludeId }) {
   if (await db.Vehicle.findOne(scope({ mobile }))) {
     throw httpError('Ya existe un vehículo con ese número de móvil', 400, 'mobile');
   }
-  if (await db.Vehicle.findOne(scope({ licensePlate: plate }))) {
+  // t138: la comparación NO puede ser por igualdad contra la forma canónica. Hay filas legacy
+  // guardadas con separador ("ABC-301") que la igualdad no encuentra, y por ahí se colaba el
+  // alta de un duplicado. plateMatcher ignora los separadores y ancla los dos extremos.
+  if (await db.Vehicle.findOne(scope({ licensePlate: plateMatcher(plate) }))) {
     throw httpError('Ya existe un vehículo con esa patente', 400, 'licensePlate');
   }
 }
@@ -131,8 +135,9 @@ class VehicleController {
       }
 
       // Patente normalizada (MAYÚSCULAS, sin símbolos): así "ABC-301" == "ABC301" y no se
-      // puede evadir el chequeo de duplicados con un guion.
-      const plate = normalizePlate(licensePlate);
+      // puede evadir el chequeo de duplicados con un guion. El FORMATO se valida contra las
+      // máscaras configuradas por el tenant (t138); sin máscaras configuradas no se valida.
+      const plate = assertValidPlate(licensePlate, await getTenantPlateFormats(req.auth.tenantId));
 
       await assertVehicleUnique(req.db, { mobile, plate });
 
@@ -275,8 +280,8 @@ class VehicleController {
         return res.status(404).json({ message: "Vehículo no encontrado" });
       }
 
-      // Patente normalizada (MAYÚSCULAS, sin símbolos): "ABC-301" == "ABC301".
-      const plate = normalizePlate(licensePlate);
+      // Patente normalizada + formato validado contra las máscaras del tenant (t138).
+      const plate = assertValidPlate(licensePlate, await getTenantPlateFormats(req.auth.tenantId));
 
       await assertVehicleUnique(req.db, { mobile, plate, excludeId: id });
 

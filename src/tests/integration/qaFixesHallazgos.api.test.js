@@ -47,16 +47,16 @@ const noLeak = (msg) => expect(msg).not.toMatch(/E11000|duplicate key|index:|ten
 
 describe('#1 — Alta de vehículo: duplicados con mensaje amable (sin filtrar Mongo)', () => {
   it('400 y mensaje amable al crear con patente duplicada', async () => {
-    await mkVehicle('DUP-mob-1', 'DUP-PLATE-1');
-    const res = await mkVehicle('DUP-mob-2', 'DUP-PLATE-1');
+    await mkVehicle('DUP-mob-1', 'DUP101');
+    const res = await mkVehicle('DUP-mob-2', 'DUP101');
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/patente/i);
     noLeak(res.body.message);
   });
 
   it('400 y mensaje amable al crear con móvil duplicado', async () => {
-    await mkVehicle('DUP-mob-X', 'DUP-PLATE-A');
-    const res = await mkVehicle('DUP-mob-X', 'DUP-PLATE-B');
+    await mkVehicle('DUP-mob-X', 'DUP102');
+    const res = await mkVehicle('DUP-mob-X', 'DUP103');
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/m[oó]vil/i);
     noLeak(res.body.message);
@@ -80,8 +80,8 @@ describe('#4 — Patente normalizada (alfanumérica, case-insensitive)', () => {
   });
 
   it('el 400 de móvil duplicado trae field="mobile"', async () => {
-    await mkVehicle('NORM-DUPMOB', 'NORMP-1');
-    const res = await mkVehicle('NORM-DUPMOB', 'NORMP-2');
+    await mkVehicle('NRM104', 'NRP101');
+    const res = await mkVehicle('NRM104', 'NRP102');
     expect(res.status).toBe(400);
     expect(res.body.field).toBe('mobile');
   });
@@ -89,7 +89,7 @@ describe('#4 — Patente normalizada (alfanumérica, case-insensitive)', () => {
 
 describe('#3 — Validaciones de asignar/desasignar devuelven 4xx (no 500)', () => {
   it('409 al asignar a una posición ya ocupada', async () => {
-    const veh = await mkVehicle('OCC-1', 'OCC-P1');
+    const veh = await mkVehicle('OCC-1', 'OCC101');
     const t1 = await mkTire();
     const a1 = await request(app).patch(`/api/tires/${t1._id}/assign`).set(auth)
       .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000034', receiptNumber: '0001-00000001', position: 'E1-I' });
@@ -103,7 +103,7 @@ describe('#3 — Validaciones de asignar/desasignar devuelven 4xx (no 500)', () 
   });
 
   it('409 al asignar una cubierta que ya está asignada', async () => {
-    const veh = await mkVehicle('OCC-2', 'OCC-P2');
+    const veh = await mkVehicle('OCC-2', 'OCC102');
     const t1 = await mkTire();
     await request(app).patch(`/api/tires/${t1._id}/assign`).set(auth)
       .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000036', receiptNumber: '0001-00000003', position: 'E1-I' });
@@ -114,7 +114,7 @@ describe('#3 — Validaciones de asignar/desasignar devuelven 4xx (no 500)', () 
   });
 
   it('400 al desasignar con kmBaja < kmAlta', async () => {
-    const veh = await mkVehicle('OCC-3', 'OCC-P3');
+    const veh = await mkVehicle('OCC-3', 'OCC103');
     const t1 = await mkTire();
     await request(app).patch(`/api/tires/${t1._id}/assign`).set(auth)
       .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000038', receiptNumber: '0001-00000005', position: 'E1-I' });

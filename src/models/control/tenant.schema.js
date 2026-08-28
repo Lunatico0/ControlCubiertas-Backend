@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { PLATE_FORMATS_AR } from '../../utils/plate.js';
 
 // Vive en el CONTROL PLANE (DB central), no en la DB del tenant.
 export const tenantSchema = new mongoose.Schema(
@@ -19,6 +20,11 @@ export const tenantSchema = new mongoose.Schema(
     // Separador de patente para DISPLAY (la patente se guarda normalizada, sin separadores).
     // "" = sin separador; "-" muestra "EEQ541" como "EEQ-541". Configurable desde el panel admin.
     plateSeparator: { type: String, default: '' },
+    // Formatos ACEPTADOS de patente, como máscaras (A = letra, 0 = dígito). Se validan sobre
+    // la forma canónica, así que el separador de la máscara es irrelevante. El default es el
+    // set argentino vigente; la LISTA VACÍA apaga la validación, que es la salida para una
+    // flota con chapas extranjeras o históricas. Ver utils/plate.js.
+    plateFormats: { type: [String], default: () => [...PLATE_FORMATS_AR] },
     // Prefijo del código interno de cubierta para DISPLAY (el code se guarda como Number
     // autoincremental). "" = sin prefijo; "TMBC-" muestra el code 12 como "TMBC-12".
     // Configurable desde el panel admin. Ver utils/tireCode en el frontend.

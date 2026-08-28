@@ -2,10 +2,11 @@ import { getControlModels } from '../db/controlPlane.js';
 import { getTenantDb } from '../db/tenantConnections.js';
 import { normalizeStatuses, assertValidStatuses } from '../utils/statuses.js';
 import { httpError } from '../utils/httpError.js';
+import { PLATE_FORMATS_AR } from '../utils/plate.js';
 
 // Config de la empresa (tenant) editable por el tenant-admin. Campos del sistema
 // (dbName, plan, status) NO se tocan acá — solo los administra el provisioning/super-admin.
-const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses', 'receiptDesign', 'plateSeparator', 'tireCodePrefix', 'autoPrint'];
+const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses', 'receiptDesign', 'plateSeparator', 'plateFormats', 'tireCodePrefix', 'autoPrint'];
 
 // Separadores de patente permitidos: vacío (ninguno) o UN solo carácter razonable. Evita que
 // se cuele texto/alfanuméricos que romperían el display o el round-trip con la patente normalizada.
@@ -36,6 +37,18 @@ export async function getTenantStatuses(tenantId) {
   const { Tenant } = getControlModels();
   const tenant = await Tenant.findById(tenantId).select('stockStatuses');
   return normalizeStatuses(tenant?.stockStatuses);
+}
+
+// Formatos de patente aceptados por el tenant (t138). Mismo patrón que getTenantStatuses: la
+// config vive en el CONTROL PLANE y el controlador la pide por request, sin cachearla en un
+// singleton (la conexión y el tenant viajan por request, nunca en estado de módulo).
+//
+// `undefined` significa "el tenant es viejo y nunca se le escribió el campo" → se cae al
+// default argentino. Un array vacío GUARDADO es una decisión explícita: no validar.
+export async function getTenantPlateFormats(tenantId) {
+  const { Tenant } = getControlModels();
+  const tenant = await Tenant.findById(tenantId).select('plateFormats');
+  return tenant?.plateFormats === undefined ? PLATE_FORMATS_AR : tenant.plateFormats;
 }
 
 export async function updateCompany(tenantId, data) {
@@ -72,6 +85,23 @@ export async function updateCompany(tenantId, data) {
     if (typeof sep !== 'string' || (sep !== '' && !PLATE_SEP_OK.test(sep))) {
       throw httpError('Separador de patente inválido: usá un solo carácter razonable (ej. "-", ".", "/", espacio) o dejalo vacío.', 400);
     }
+  }
+
+  // Formatos de patente: cada máscara se escribe con A (letra) y 0 (dígito), hasta 12
+  // posiciones. Se limpian los separadores decorativos (la validación corre sobre la forma
+  // canónica) y se descartan las entradas vacías. La lista vacía es válida: apaga la validación.
+  if ('plateFormats' in update) {
+    const raw = update.plateFormats;
+    if (!Array.isArray(raw)) throw httpError('Los formatos de patente tienen que ser una lista.', 400);
+    const limpios = raw
+      .map((m) => String(m ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/[1-9]/g, '0'))
+      .filter(Boolean);
+    for (const m of limpios) {
+      if (!/^[A0]{1,12}$/.test(m)) {
+        throw httpError(`Formato de patente inválido: "${m}". Usá A para una letra y 0 para un dígito (ej. AAA000, AA000AA).`, 400);
+      }
+    }
+    update.plateFormats = [...new Set(limpios)];
   }
 
   if ('tireCodePrefix' in update) {

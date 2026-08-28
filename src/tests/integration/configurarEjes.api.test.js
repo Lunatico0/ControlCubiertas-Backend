@@ -27,7 +27,7 @@ afterAll(async () => {
 
 describe('PATCH /api/vehicles/:id/axles — configurar ejes de un vehículo existente', () => {
   it('asigna el esquema de ejes a un vehículo creado sin ejes', async () => {
-    const veh = await request(app).post('/api/vehicles').set(auth).send({ brand: 'Scania', mobile: 'M-cfg', licensePlate: 'CFG-1' });
+    const veh = await request(app).post('/api/vehicles').set(auth).send({ brand: 'Scania', mobile: 'M-cfg', licensePlate: 'CFG101' });
     expect(veh.status).toBe(201);
     expect(veh.body.axles || []).toHaveLength(0); // arranca sin ejes
     const id = veh.body._id;
@@ -46,7 +46,7 @@ describe('PATCH /api/vehicles/:id/axles — configurar ejes de un vehículo exis
   });
 
   it('acepta ejes moto (rueda única)', async () => {
-    const veh = await request(app).post('/api/vehicles').set(auth).send({ brand: 'Honda', mobile: 'Moto-cfg', licensePlate: 'CFG-M' });
+    const veh = await request(app).post('/api/vehicles').set(auth).send({ brand: 'Honda', mobile: 'Moto-cfg', licensePlate: 'CFG103' });
     const id = veh.body._id;
     const res = await request(app).patch(`/api/vehicles/${id}/axles`).set(auth).send({ axles: [{ type: 'moto' }, { type: 'moto' }] });
     expect(res.status).toBe(200);
@@ -54,7 +54,7 @@ describe('PATCH /api/vehicles/:id/axles — configurar ejes de un vehículo exis
   });
 
   it('rechaza un type de eje inválido', async () => {
-    const veh = await request(app).post('/api/vehicles').set(auth).send({ brand: 'X', mobile: 'M-bad', licensePlate: 'CFG-2' });
+    const veh = await request(app).post('/api/vehicles').set(auth).send({ brand: 'X', mobile: 'M-bad', licensePlate: 'CFG102' });
     const res = await request(app).patch(`/api/vehicles/${veh.body._id}/axles`).set(auth).send({ axles: [{ type: 'triple' }] });
     expect(res.status).toBe(400);
   });

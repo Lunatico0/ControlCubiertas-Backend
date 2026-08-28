@@ -34,7 +34,7 @@ afterAll(async () => {
 
 const mkVehicle = async () => {
   const res = await request(app).post('/api/vehicles').set(auth)
-    .send({ brand: 'Scania', mobile: `M-${++seq}`, licensePlate: `P-${seq}`, axles: [{ type: 'simple' }, { type: 'dual' }] });
+    .send({ brand: 'Scania', mobile: `M-${++seq}`, licensePlate: `PAA${String(seq).padStart(3, '0')}`, axles: [{ type: 'simple' }, { type: 'dual' }] });
   return res.body._id;
 };
 const mkTire = (status) => {
