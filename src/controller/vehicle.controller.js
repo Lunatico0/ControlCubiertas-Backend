@@ -31,10 +31,12 @@ class VehicleController {
     res.json(vehicles);
   });
 
+  // req.vehicle lo deja validateVehicleExists: un id malformado sale 400 y uno inexistente 404.
+  // Antes esta ruta devolvía 200 con body null y el frontend tenía que adivinar si eso era un
+  // vacío legítimo o un error, mientras su vecina getPositions ya contestaba 404 al mismo input.
   getById = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const vehicle = await req.db.Vehicle.findById(id).populate('tires');
-    res.json(vehicle);
+    await req.vehicle.populate('tires');
+    res.json(req.vehicle);
   });
 
   // Esquema de ejes del vehículo + qué cubierta ocupa cada posición (o null si libre).

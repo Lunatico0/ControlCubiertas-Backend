@@ -309,7 +309,10 @@ class TireService {
   async correctHistoryEntry(db, tireId, historyId, updates) {
     const tire = await this.getDocById(db, tireId);
     const original = await db.History.findById(historyId).populate('vehicle').populate('corrects');
-
+    // El guard va ACÁ y no veinte líneas más abajo: ahí ya se había leído original.orderNumber
+    // (TypeError y 500 en vez de este 404) y, peor, ya se había reservado un número de
+    // comprobante que quedaba quemado por una corrección que nunca se pudo intentar.
+    if (!original) throw httpError('Entrada de historial no encontrada', 404);
 
     const history = await db.History.find({ tire: tire._id }).sort({ date: 1 });
     const originalOrder = original.orderNumber;
@@ -320,7 +323,6 @@ class TireService {
     const reasonCorrection = `Corrección de Orden N°${originalOrder}`;
     const userExtra = updates.form.reason?.trim() || '';
 
-    if (!original) throw httpError('Entrada de historial no encontrada', 404);
 
     const compareValues = (a, b) => {
       if ((a == null || a === '') && (b == null || b === '')) return false;

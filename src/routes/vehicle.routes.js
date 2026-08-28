@@ -63,7 +63,7 @@ router.post('/types', validate(createVehicleTypeSchema), VehicleController.creat
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/:id', VehicleController.getById);
+router.get('/:id', validateVehicleExists, VehicleController.getById);
 
 /**
  * @swagger
