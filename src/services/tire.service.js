@@ -181,7 +181,17 @@ class TireService {
     const kmAlta = currentState.lastAssignmentKm;
     const kmRecorridos = kmBaja - kmAlta;
 
-    if (kmRecorridos < 0) throw httpError('Kilometraje de baja no puede ser menor que el de alta', 400);
+    // t141: el mensaje trae el VALOR concreto contra el que se compara. Antes decía sólo que
+    // no podía ser menor "que el de alta", y el operario tenía que cerrar el modal, ir al
+    // historial, anotar el número y volver, en la acción más frecuente después de asignar.
+    // El dato ya está calculado acá arriba: ponerlo en el mensaje no cuesta una query.
+    if (kmRecorridos < 0) {
+      throw httpError(
+        `El odómetro al desmontar (${kmBaja.toLocaleString('es-AR')} km) no puede ser menor que el odómetro al montar (${kmAlta.toLocaleString('es-AR')} km).`,
+        400,
+        'kmBaja',
+      );
+    }
 
     // Recién acá, pasado el control de kilometraje: es justo el rechazo que quemaba números.
     const numero = await reservarNumeroComprobante(db, receiptNumber);

@@ -121,6 +121,6 @@ describe('#3 — Validaciones de asignar/desasignar devuelven 4xx (no 500)', () 
     const res = await request(app).patch(`/api/tires/${t1._id}/unassign`).set(auth)
       .send({ kmBaja: 500, orderNumber: '2026-000039', receiptNumber: '0001-00000006' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/kilometraje/i);
+    expect(res.body.message).toMatch(/od[óo]metro/i) // t141: el mensaje ahora nombra el valor concreto;
   });
 });
