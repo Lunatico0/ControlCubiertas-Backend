@@ -96,6 +96,24 @@ class VehicleController {
     }
   }
 
+  // Marcar el vehículo fuera de servicio, o devolverlo al servicio (t145).
+  //
+  // Es una ANOTACIÓN sobre el vehículo, no una baja: no toca las cubiertas montadas ni saca al
+  // vehículo del inventario. Lo único que cambia es que deja de contar como pendiente en la
+  // lista "PARA HOY" del Inicio, donde antes quedaba clavado todos los días.
+  //
+  // Vive en el vehículo (data plane) y no en el dispositivo a propósito: un acoplado parado lo
+  // está para todos los que abren la app, no solo para quien lo descartó de su pantalla.
+  setService = asyncHandler(async (req, res) => {
+    const { outOfService } = req.body;
+    const vehicle = await req.db.Vehicle.findById(req.params.id);
+    if (!vehicle) return res.status(404).json({ message: 'Vehículo no encontrado' });
+
+    vehicle.outOfService = outOfService;
+    await vehicle.save();
+    res.json(vehicle);
+  });
+
   // Tipos de vehículo custom del tenant (data-plane). Los presets viven en el front; acá
   // solo los que el usuario guarda. Nombre único (validado en código, no por índice).
   listVehicleTypes = asyncHandler(async (req, res) => {
