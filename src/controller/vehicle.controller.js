@@ -224,14 +224,15 @@ class VehicleController {
 
       const tiresToRemove = currentTires.filter((tireId) => !tires.includes(tireId));
 
-      try {
-        await req.db.Tire.updateMany(
-          { _id: { $in: tiresToRemove } },
-          { $set: { vehicle: null } }
-        );
-      } catch (error) {
-        console.error("Error al desvincular cubiertas:", error.message);
-      }
+      // t30: este updateMany estaba envuelto en un try/catch que solo hacía console.error y
+      // DEJABA SEGUIR EL FLUJO. Si el desvinculado fallaba, la request terminaba respondiendo
+      // 200: el cliente creía que la operación había salido bien mientras las cubiertas
+      // quedaban apuntando a un vehículo del que ya no forman parte. Un error de escritura
+      // acá no es un detalle a loguear, es el motivo para abortar.
+      await req.db.Tire.updateMany(
+        { _id: { $in: tiresToRemove } },
+        { $set: { vehicle: null } }
+      );
 
       for (const tireId of tiresToRemove) {
         const tire = await req.db.Tire.findById(tireId);
@@ -246,14 +247,13 @@ class VehicleController {
         }
       }
 
-      try {
-        await req.db.Tire.updateMany(
-          { _id: { $in: tires } },
-          { $set: { vehicle: id } }
-        );
-      } catch (error) {
-        console.error("Error al asignar nuevas cubiertas:", error.message);
-      }
+      // t30: mismo caso. Tragar el error acá dejaba cubiertas sin vincular al vehículo con un
+      // 200 de respuesta, que es exactamente el desync que después hay que salir a reparar
+      // con un script.
+      await req.db.Tire.updateMany(
+        { _id: { $in: tires } },
+        { $set: { vehicle: id } }
+      );
 
       // SÓLO las cubiertas que ENTRAN ahora. Registrar una Asignación por cada cubierta del
       // array re-emitía el movimiento en cada guardado del vehículo, aunque no hubiera cambiado
@@ -284,7 +284,13 @@ class VehicleController {
 
     } catch (error) {
       console.error("Error al actualizar el vehículo: ", error.message);
-      res.status(500).json({ message: "Error al actualizar el vehículo", error: error.message });
+      // El `error: error.message` que iba acá filtraba el texto crudo de Mongo al cliente
+      // (E11000 con el nombre de la DB del tenant y el índice), justo lo que el handler
+      // central ya evita en el resto de la app. El detalle queda en el log del servidor.
+      res.status(error.status || 500).json({
+        message: error.status ? error.message : "Error al actualizar el vehículo",
+        ...(error.field ? { field: error.field } : {}),
+      });
     }
   }
 
@@ -313,11 +319,12 @@ class VehicleController {
     } catch (error) {
       console.error("Error al actualizar detalles del vehículo:", error.message);
       // Duplicado (httpError con status/field): mensaje amable 400 + field. Cualquier otro
-      // error mantiene el wrapper 500 histórico (no filtra el error crudo de Mongo).
+      // error mantiene el wrapper 500 histórico. El comentario decía que no filtraba el error
+      // crudo de Mongo mientras el código lo mandaba en `error`: ahora es cierto (t30).
       if (error.status) {
         return res.status(error.status).json({ message: error.message, ...(error.field ? { field: error.field } : {}) });
       }
-      res.status(500).json({ message: "Error al actualizar el vehículo", error: error.message });
+      res.status(500).json({ message: "Error al actualizar el vehículo" });
     }
   }
 }
