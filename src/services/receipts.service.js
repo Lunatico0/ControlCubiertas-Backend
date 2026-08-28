@@ -4,21 +4,56 @@ import { getTenantDb } from '../db/tenantConnections.js';
 // receiptNumber. El histórico = los movimientos que emitieron comprobante (número real).
 const NO_RECEIPT = '0000-00000000';
 
+const escaparRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Histórico de comprobantes del tenant, listo para la tabla del panel y para reimprimir.
 // Lee el data plane vía getTenantDb (patrón de stats.service; las rutas admin no tienen attachDb).
+//
+// El filtrado y la paginación se resuelven ENTEROS en Mongo: History crece monótonamente con
+// cada alta, asignación y corrección, y traerlo completo a memoria para hacer slice() revienta
+// la lambda de un tenant con años de operación. La búsqueda cross-field (número de comprobante,
+// código de cubierta, patente) se resuelve prefiltrando ids en Tire/Vehicle y cruzándolos con
+// un $or, que es una query indexada, no un scan.
 export async function getTenantReceipts(dbName, { q = '', type = '', page = 1, limit = 20 } = {}) {
-  const { History } = getTenantDb(dbName).models;
+  const { History, Tire, Vehicle } = getTenantDb(dbName).models;
 
   const filter = { receiptNumber: { $ne: NO_RECEIPT } };
-  if (type) filter.type = type;
+  // `type` viene de req.query: el parser qs de Express convierte ?type[$ne]=Alta en un objeto
+  // que Mongoose aceptaría como operador. Sólo un string entra al filtro.
+  if (typeof type === 'string' && type.trim()) filter.type = type.trim();
 
-  const rows = await History.find(filter)
-    .sort({ date: -1 })
-    .populate('tire', 'code brand size serialNumber pattern')
-    .populate('vehicle', 'licensePlate mobile')
-    .lean();
+  if (q && String(q).trim()) {
+    const needle = String(q).trim();
+    const rx = new RegExp(escaparRegex(needle), 'i');
+    const codigo = Number(needle);
 
-  let items = rows.map((h) => ({
+    const [tires, vehicles] = await Promise.all([
+      Tire.find(Number.isNaN(codigo) ? { serialNumber: rx } : { code: codigo }).select('_id').lean(),
+      Vehicle.find({ licensePlate: rx }).select('_id').lean(),
+    ]);
+
+    filter.$or = [
+      { receiptNumber: rx },
+      ...(tires.length ? [{ tire: { $in: tires.map((t) => t._id) } }] : []),
+      ...(vehicles.length ? [{ vehicle: { $in: vehicles.map((v) => v._id) } }] : []),
+    ];
+  }
+
+  const p = Math.max(1, Number(page) || 1);
+  const l = Math.max(1, Number(limit) || 20);
+
+  const [rows, total] = await Promise.all([
+    History.find(filter)
+      .sort({ date: -1 })
+      .skip((p - 1) * l)
+      .limit(l)
+      .populate('tire', 'code brand size serialNumber pattern')
+      .populate('vehicle', 'licensePlate mobile')
+      .lean(),
+    History.countDocuments(filter),
+  ]);
+
+  const items = rows.map((h) => ({
     id: String(h._id),
     numero: h.receiptNumber,
     fecha: h.date,
@@ -40,23 +75,5 @@ export async function getTenantReceipts(dbName, { q = '', type = '', page = 1, l
     editedFields: Array.isArray(h.editedFields) ? h.editedFields : [],
   }));
 
-  // Búsqueda cross-field (número, código de cubierta, patente): cruza colecciones
-  // (History/Tire/Vehicle), así que se filtra en memoria. Se aplica ANTES de paginar
-  // para que total y páginas queden coherentes. Volumen por tenant manejable.
-  if (q) {
-    const needle = q.trim().toLowerCase();
-    items = items.filter(
-      (c) =>
-        c.numero.toLowerCase().includes(needle) ||
-        (c.cubierta && String(c.cubierta.code).includes(needle)) ||
-        (c.patente && c.patente.toLowerCase().includes(needle)),
-    );
-  }
-
-  const total = items.length;
-  const p = Math.max(1, Number(page) || 1);
-  const l = Math.max(1, Number(limit) || 20);
-  const paged = items.slice((p - 1) * l, p * l);
-
-  return { items: paged, total, page: p, limit: l };
+  return { items, total, page: p, limit: l };
 }

@@ -92,12 +92,12 @@ describe('#3 — Validaciones de asignar/desasignar devuelven 4xx (no 500)', () 
     const veh = await mkVehicle('OCC-1', 'OCC-P1');
     const t1 = await mkTire();
     const a1 = await request(app).patch(`/api/tires/${t1._id}/assign`).set(auth)
-      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: 'O1', receiptNumber: '0001-00000001', position: 'E1-I' });
+      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000034', receiptNumber: '0001-00000001', position: 'E1-I' });
     expect(a1.status).toBe(200);
 
     const t2 = await mkTire();
     const a2 = await request(app).patch(`/api/tires/${t2._id}/assign`).set(auth)
-      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: 'O2', receiptNumber: '0001-00000002', position: 'E1-I' });
+      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000035', receiptNumber: '0001-00000002', position: 'E1-I' });
     expect(a2.status).toBe(409);
     expect(a2.body.message).toMatch(/ocupad/i);
   });
@@ -106,9 +106,9 @@ describe('#3 — Validaciones de asignar/desasignar devuelven 4xx (no 500)', () 
     const veh = await mkVehicle('OCC-2', 'OCC-P2');
     const t1 = await mkTire();
     await request(app).patch(`/api/tires/${t1._id}/assign`).set(auth)
-      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: 'O3', receiptNumber: '0001-00000003', position: 'E1-I' });
+      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000036', receiptNumber: '0001-00000003', position: 'E1-I' });
     const again = await request(app).patch(`/api/tires/${t1._id}/assign`).set(auth)
-      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: 'O4', receiptNumber: '0001-00000004', position: 'E1-D' });
+      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000037', receiptNumber: '0001-00000004', position: 'E1-D' });
     expect(again.status).toBe(409);
     expect(again.body.message).toMatch(/ya est[aá] asignada/i);
   });
@@ -117,9 +117,9 @@ describe('#3 — Validaciones de asignar/desasignar devuelven 4xx (no 500)', () 
     const veh = await mkVehicle('OCC-3', 'OCC-P3');
     const t1 = await mkTire();
     await request(app).patch(`/api/tires/${t1._id}/assign`).set(auth)
-      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: 'O5', receiptNumber: '0001-00000005', position: 'E1-I' });
+      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000038', receiptNumber: '0001-00000005', position: 'E1-I' });
     const res = await request(app).patch(`/api/tires/${t1._id}/unassign`).set(auth)
-      .send({ kmBaja: 500, orderNumber: 'O6', receiptNumber: '0001-00000006' });
+      .send({ kmBaja: 500, orderNumber: '2026-000039', receiptNumber: '0001-00000006' });
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/kilometraje/i);
   });

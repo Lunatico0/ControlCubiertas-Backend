@@ -232,7 +232,12 @@ class VehicleController {
         console.error("Error al asignar nuevas cubiertas:", error.message);
       }
 
-      for (const tireId of tires) {
+      // SÓLO las cubiertas que ENTRAN ahora. Registrar una Asignación por cada cubierta del
+      // array re-emitía el movimiento en cada guardado del vehículo, aunque no hubiera cambiado
+      // nada: movimientos fantasma en el historial y stints inflados en los reportes por móvil.
+      const tiresToAdd = tires.filter((tireId) => !currentTires.includes(String(tireId)));
+
+      for (const tireId of tiresToAdd) {
         const tire = await req.db.Tire.findById(tireId);
         if (tire) {
           await addHistoryEntry(req.db.History, tire._id, {

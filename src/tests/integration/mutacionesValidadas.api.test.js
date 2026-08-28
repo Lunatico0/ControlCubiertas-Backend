@@ -30,8 +30,7 @@ const DB_NAME = 'tenant_mutaciones';
 const crearCubierta = async (extra = {}) => {
   const res = await request(app).post('/api/tires').set(auth).send({
     status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: '295/80',
-    serialNumber: `SN${seq}`, ...extra,
-  });
+    serialNumber: `SN${seq}`, ...extra, orderNumber: '2026-000001' });
   if (res.status !== 201 && res.status !== 200) throw new Error(`alta fallida: ${res.status} ${JSON.stringify(res.body)}`);
   return db.Tire.findById(res.body.tire?._id || res.body._id);
 };
@@ -62,20 +61,20 @@ afterAll(async () => {
 describe('PATCH /api/tires/:id/status', () => {
   it('sin status → 400', async () => {
     const t = await crearCubierta();
-    const res = await request(app).patch(`/api/tires/${t._id}/status`).set(auth).send({ orderNumber: 'ORD-1' });
+    const res = await request(app).patch(`/api/tires/${t._id}/status`).set(auth).send({ orderNumber: '2026-000020' });
     expect(res.status).toBe(400);
   });
 
   it('con status que no es string → 400', async () => {
     const t = await crearCubierta();
-    const res = await request(app).patch(`/api/tires/${t._id}/status`).set(auth).send({ status: { $ne: null } });
+    const res = await request(app).patch(`/api/tires/${t._id}/status`).set(auth).send({ status: { $ne: null }, orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
   });
 
   it('con un status válido del tenant sigue funcionando', async () => {
     const t = await crearCubierta();
     const res = await request(app).patch(`/api/tires/${t._id}/status`).set(auth)
-      .send({ status: '1er Recapado', orderNumber: 'ORD-1', receiptNumber: '0001-00000001' });
+      .send({ status: '1er Recapado', orderNumber: '2026-000021', receiptNumber: '0001-00000001' });
     expect(res.status).toBe(200);
     expect(res.body.tire.status).toBe('1er Recapado');
   });
@@ -85,7 +84,7 @@ describe('PATCH /api/tires/:id/assign', () => {
   it('sin kmAlta → 400', async () => {
     const t = await crearCubierta();
     const v = await crearVehiculo();
-    const res = await request(app).patch(`/api/tires/${t._id}/assign`).set(auth).send({ vehicle: String(v._id) });
+    const res = await request(app).patch(`/api/tires/${t._id}/assign`).set(auth).send({ vehicle: String(v._id), orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
   });
 
@@ -93,7 +92,7 @@ describe('PATCH /api/tires/:id/assign', () => {
     const t = await crearCubierta();
     const v = await crearVehiculo();
     const res = await request(app).patch(`/api/tires/${t._id}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: '1000' });
+      .send({ vehicle: String(v._id), kmAlta: '1000', orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
   });
 
@@ -101,13 +100,13 @@ describe('PATCH /api/tires/:id/assign', () => {
     const t = await crearCubierta();
     const v = await crearVehiculo();
     const res = await request(app).patch(`/api/tires/${t._id}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: -5 });
+      .send({ vehicle: String(v._id), kmAlta: -5, orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
   });
 
   it('sin vehicle → 400', async () => {
     const t = await crearCubierta();
-    const res = await request(app).patch(`/api/tires/${t._id}/assign`).set(auth).send({ kmAlta: 1000 });
+    const res = await request(app).patch(`/api/tires/${t._id}/assign`).set(auth).send({ kmAlta: 1000, orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
   });
 
@@ -115,7 +114,7 @@ describe('PATCH /api/tires/:id/assign', () => {
     const t = await crearCubierta();
     const v = await crearVehiculo();
     const res = await request(app).patch(`/api/tires/${t._id}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: 'ORD-2', position: 'E1-I' });
+      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: '2026-000022', position: 'E1-I' });
     expect(res.status).toBe(200);
     expect(res.body.tire.position).toBe('E1-I');
   });
@@ -124,13 +123,13 @@ describe('PATCH /api/tires/:id/assign', () => {
 describe('PATCH /api/tires/:id/unassign', () => {
   it('sin kmBaja → 400', async () => {
     const t = await crearCubierta();
-    const res = await request(app).patch(`/api/tires/${t._id}/unassign`).set(auth).send({ orderNumber: 'ORD-3' });
+    const res = await request(app).patch(`/api/tires/${t._id}/unassign`).set(auth).send({ orderNumber: '2026-000023' });
     expect(res.status).toBe(400);
   });
 
   it('con kmBaja absurdo (por encima del techo) → 400', async () => {
     const t = await crearCubierta();
-    const res = await request(app).patch(`/api/tires/${t._id}/unassign`).set(auth).send({ kmBaja: 999999999 });
+    const res = await request(app).patch(`/api/tires/${t._id}/unassign`).set(auth).send({ kmBaja: 999999999, orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
   });
 
@@ -138,10 +137,10 @@ describe('PATCH /api/tires/:id/unassign', () => {
     const t = await crearCubierta();
     const v = await crearVehiculo();
     await request(app).patch(`/api/tires/${t._id}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: 'ORD-4' });
+      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: '2026-000024' });
 
     const res = await request(app).patch(`/api/tires/${t._id}/unassign`).set(auth)
-      .send({ kmBaja: 5000, orderNumber: 'ORD-5' });
+      .send({ kmBaja: 5000, orderNumber: '2026-000025' });
     expect(res.status).toBe(200);
   });
 });
@@ -149,20 +148,20 @@ describe('PATCH /api/tires/:id/unassign', () => {
 describe('PATCH /api/tires/:id/correct', () => {
   it('sin el bloque form → 400', async () => {
     const t = await crearCubierta();
-    const res = await request(app).patch(`/api/tires/${t._id}/correct`).set(auth).send({ brand: 'Nueva marca' });
+    const res = await request(app).patch(`/api/tires/${t._id}/correct`).set(auth).send({ brand: 'Nueva marca', orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
   });
 
   it('con form que no es objeto → 400', async () => {
     const t = await crearCubierta();
-    const res = await request(app).patch(`/api/tires/${t._id}/correct`).set(auth).send({ form: 'texto' });
+    const res = await request(app).patch(`/api/tires/${t._id}/correct`).set(auth).send({ form: 'texto', orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
   });
 
   it('corrige la marca con un form válido', async () => {
     const t = await crearCubierta();
     const res = await request(app).patch(`/api/tires/${t._id}/correct`).set(auth)
-      .send({ form: { brand: 'Michelin', reason: 'error de tipeo', orderNumber: 'ORD-6' } });
+      .send({ form: { brand: 'Michelin', reason: 'error de tipeo', orderNumber: '2026-000026' } });
     expect(res.status).toBe(200);
     expect(res.body.editedFields).toContain('brand');
   });
@@ -170,7 +169,7 @@ describe('PATCH /api/tires/:id/correct', () => {
   it('no deja escribir campos fuera de los corregibles', async () => {
     const t = await crearCubierta();
     await request(app).patch(`/api/tires/${t._id}/correct`).set(auth)
-      .send({ form: { brand: 'Pirelli', reason: 'r', kilometers: 999999, status: 'Descartada' } });
+      .send({ form: { brand: 'Pirelli', reason: 'r', kilometers: 999999, status: 'Descartada' }, orderNumber: '2026-000001' });
 
     const despues = await db.Tire.findById(t._id);
     expect(despues.kilometers).not.toBe(999999);
@@ -185,7 +184,7 @@ describe('PATCH /api/tires/:id/history/:historyId', () => {
     const t = await crearCubierta();
     const h = await historialDe(t._id);
     const res = await request(app).patch(`/api/tires/${t._id}/history/${h._id}`).set(auth)
-      .send({ orderNumber: 'ORD-7' });
+      .send({ orderNumber: '2026-000027' });
     expect(res.status).toBe(400);
   });
 
@@ -195,7 +194,7 @@ describe('PATCH /api/tires/:id/history/:historyId', () => {
     const t = await crearCubierta();
     const h = await historialDe(t._id);
     const res = await request(app).patch(`/api/tires/${t._id}/history/${h._id}`).set(auth)
-      .send({ form: { orderNumber: 'ORD-8', reason: 'ajuste', campoInventado: 'x', flag: false } });
+      .send({ form: { orderNumber: '2026-000028', reason: 'ajuste', campoInventado: 'x', flag: false } });
 
     expect(res.status).toBe(400);
   });
@@ -204,11 +203,11 @@ describe('PATCH /api/tires/:id/history/:historyId', () => {
     const t = await crearCubierta();
     const v = await crearVehiculo();
     await request(app).patch(`/api/tires/${t._id}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: 'ORD-9' });
+      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: '2026-000029' });
 
     const asignacion = (await db.History.find({ tire: t._id, type: 'Asignación' }))[0];
     const res = await request(app).patch(`/api/tires/${t._id}/history/${asignacion._id}`).set(auth)
-      .send({ form: { kmAlta: 1200, orderNumber: 'ORD-10', reason: 'odómetro mal leído' } });
+      .send({ form: { kmAlta: 1200, orderNumber: '2026-000030', reason: 'odómetro mal leído' } });
 
     expect(res.status).toBe(200);
   });
@@ -219,7 +218,7 @@ describe('POST /api/tires/:id/history/:historyId/undo', () => {
     const t = await crearCubierta();
     const h = (await db.History.find({ tire: t._id }))[0];
     const res = await request(app).post(`/api/tires/${t._id}/history/${h._id}/undo`).set(auth)
-      .send({ orderNumber: 'ORD-11', reason: { $ne: null } });
+      .send({ orderNumber: '2026-000031', reason: { $ne: null } });
     expect(res.status).toBe(400);
   });
 
@@ -227,11 +226,11 @@ describe('POST /api/tires/:id/history/:historyId/undo', () => {
     const t = await crearCubierta();
     const v = await crearVehiculo();
     await request(app).patch(`/api/tires/${t._id}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: 'ORD-12' });
+      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: '2026-000032' });
     const asignacion = (await db.History.find({ tire: t._id, type: 'Asignación' }))[0];
 
     const res = await request(app).post(`/api/tires/${t._id}/history/${asignacion._id}/undo`).set(auth)
-      .send({ orderNumber: 'ORD-13', reason: 'se cargó en el móvil equivocado' });
+      .send({ orderNumber: '2026-000033', reason: 'se cargó en el móvil equivocado' });
     expect(res.status).toBe(200);
   });
 });

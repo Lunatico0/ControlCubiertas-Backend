@@ -27,14 +27,12 @@ afterAll(async () => {
 describe('Crear vehículo asignando cubiertas (Bug 5)', () => {
   it('crea el vehículo, asigna la cubierta y registra historial de Asignación', async () => {
     const tireRes = await request(app).post('/api/tires').set(auth).send({
-      code: 10, brand: 'B', pattern: 'P', serialNumber: 'SN10', size: 'S', status: 'Nueva',
-    });
+      code: 10, brand: 'B', pattern: 'P', serialNumber: 'SN10', size: 'S', status: 'Nueva', orderNumber: '2026-000001' });
     expect(tireRes.status).toBe(201);
     const tireId = tireRes.body._id;
 
     const vehRes = await request(app).post('/api/vehicles').set(auth).send({
-      brand: 'Ford', mobile: 'Movil 10', licensePlate: 'AAA-100', tires: [tireId],
-    });
+      brand: 'Ford', mobile: 'Movil 10', licensePlate: 'AAA-100', tires: [tireId], orderNumber: '2026-000001' });
     expect(vehRes.status).toBe(201);
     const vehId = vehRes.body._id;
 

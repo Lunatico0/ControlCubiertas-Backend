@@ -1,4 +1,5 @@
 import { toCorrectionType, recalculateTireState, updateTireFromState, addHistoryEntry } from '../utils/utils.js';
+import { nameByRole } from '../utils/statuses.js';
 import { reconcileTireVehicleLinks } from '../utils/vehicleTires.js';
 import { generatePositions } from '../utils/axles.js';
 import { httpError } from '../utils/httpError.js';
@@ -351,12 +352,15 @@ class TireService {
       throw httpError('No se detectaron cambios para corregir.', 400);
     }
 
+    // Igual que en undoHistoryEntry: el tipo se captura antes de mutarlo, porque más abajo
+    // la entrada NUEVA se deriva del tipo que la original TENÍA.
+    const originalType = original.type;
+
     // Marcar original como corregida
     original.flag = true;
     original.editedFields = editedFields;
     original.reason = reasonOriginal;
-    original.correctedAt = new Date();
-    original.type = toCorrectionType(original.type);
+    original.type = toCorrectionType(originalType);
 
     await original.save();
 
@@ -406,7 +410,7 @@ class TireService {
       ...clone,
       ...updates.form,
       tire: tireId,
-      type: toCorrectionType(original.type),
+      type: toCorrectionType(originalType),
       flag: true,
       editedFields,
       date: new Date(),
@@ -434,7 +438,7 @@ class TireService {
     };
   };
 
-  async undoHistoryEntry(db, tireId, historyId, formData) {
+  async undoHistoryEntry(db, tireId, historyId, formData, statuses = []) {
     const { orderNumber } = formData;
 
     const tire = await this.getDocById(db, tireId);
@@ -453,18 +457,22 @@ class TireService {
       ? `${reasonUndo} ${userExtra}`
       : reasonUndo;
 
+    // El tipo se lee ANTES de marcar la entrada: abajo se muta a la forma Corrección-*, y el
+    // switch tiene que razonar sobre lo que la entrada ERA, no sobre lo que quedó.
+    const originalType = original.type;
+
     // Marcar entrada original como deshecha
     original.flag = true;
     original.editedFields = ['Deshacer entrada'];
     original.correctedAt = new Date();
     original.reason = reasonOriginal;
-    original.type = toCorrectionType(original.type);
+    original.type = toCorrectionType(originalType);
     await original.save();
 
     let revertedData = {};
 
     // Lógica de reversión según el tipo de entrada.
-    switch (original.type) {
+    switch (originalType) {
       case 'Asignación':
       case 'Corrección-Asignación':
         // Deshacer asignación = desasignar cubierta
@@ -480,7 +488,7 @@ class TireService {
       case 'Estado':
       case 'Corrección-Estado':
         // Deshacer cambio de estado = volver al estado anterior
-        revertedData = await this.handleUndoStatusChange(db, tire, original, history, orderNumber, reasonFinal, receiptNumber);
+        revertedData = await this.handleUndoStatusChange(db, tire, original, history, orderNumber, reasonFinal, receiptNumber, statuses, originalType);
         break;
 
       case 'Alta':
@@ -489,7 +497,7 @@ class TireService {
         throw httpError('No se puede deshacer el alta de una cubierta: para eso hay que descartarla.', 409);
 
       default:
-        throw httpError(`Tipo de entrada no soportado para deshacer: ${original.type}`, 400);
+        throw httpError(`Tipo de entrada no soportado para deshacer: ${originalType}`, 400);
     }
 
     // Recalcular estado final
@@ -589,7 +597,7 @@ class TireService {
     };
   }
 
-  async handleUndoStatusChange(db, tire, original, history, correctionOrder, reason, receiptNumber) {
+  async handleUndoStatusChange(db, tire, original, history, correctionOrder, reason, receiptNumber, statuses = [], originalType = original.type) {
     // Buscar el estado anterior
     const previousStatusEntry = [...history]
       .reverse()
@@ -600,11 +608,14 @@ class TireService {
         entry.status
       );
 
-    let revertedStatus = 'Nueva'; // Estado por defecto
+    // El estado de reversión sale del ROL, nunca de un literal: el tenant puede haber
+    // renombrado su estado inicial a "0 km" y "Nueva" no existiría en su escalera.
+    const estadoInicial = nameByRole(statuses, 'initial') || 'Nueva';
+    let revertedStatus = estadoInicial;
 
     if (previousStatusEntry) {
       revertedStatus = previousStatusEntry.status;
-    } else if (original.type === 'Corrección-Estado' && original.corrects) {
+    } else if (originalType === 'Corrección-Estado' && original.corrects) {
       // Si es una corrección, buscar la entrada original
       const originalStatusChange = history.find(h => h._id.toString() === original.corrects.toString());
       if (originalStatusChange) {
@@ -617,7 +628,7 @@ class TireService {
             !entry.flag &&
             entry.status
           );
-        revertedStatus = evenEarlierStatus ? evenEarlierStatus.status : 'Nueva';
+        revertedStatus = evenEarlierStatus ? evenEarlierStatus.status : estadoInicial;
       }
     }
 

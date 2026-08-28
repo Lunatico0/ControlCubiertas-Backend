@@ -10,6 +10,36 @@ export const KM_MAX = 1_500_000;
 // una fecha de 2030, sí.
 const MARGEN_FUTURO_MS = 24 * 3600 * 1000;
 
+// El número de ORDEN es el dato que hace auditable al comprobante: es OBLIGATORIO en todos
+// los caminos que emiten uno, y el backend es la FUENTE DE VERDAD (el front lo exigía por su
+// cuenta mientras acá entraba vacío y con cualquier forma).
+//
+// Se NORMALIZA además de validarse. El motivo es concreto: el panel viejo manda el número ya
+// formateado (AAAA-NNNNNN) y la operativa /op mandaba los dígitos crudos, así que en la misma
+// base conviven "123" y "2026-000123" para el mismo tipo de dato. Aceptar las dos formas y
+// guardar siempre la canónica cierra esa inconsistencia sin romper ningún cliente instalado.
+// Los caminos que NO emiten comprobante (alta de vehículo con cubiertas) no pasan por acá.
+const FORMATO_ORDEN = /^\d{4}-\d{6}$/;
+const SOLO_DIGITOS = /^\d{1,6}$/;
+
+export const normalizarNumeroDeOrden = (valor) => {
+  const limpio = String(valor ?? '').trim();
+  if (FORMATO_ORDEN.test(limpio)) return limpio;
+  if (SOLO_DIGITOS.test(limpio) && Number(limpio) > 0) {
+    return `${new Date().getFullYear()}-${limpio.padStart(6, '0')}`;
+  }
+  return null;
+};
+
+const numeroDeOrden = z
+  .string({ error: 'El número de orden es obligatorio' })
+  .trim()
+  .min(1, 'El número de orden es obligatorio')
+  .refine((v) => normalizarNumeroDeOrden(v) !== null, {
+    error: 'El número de orden tiene que ser un número mayor a cero (o el formato AAAA-NNNNNN)',
+  })
+  .transform((v) => normalizarNumeroDeOrden(v));
+
 const kilometraje = z
   .number()
   .int('El kilometraje tiene que ser un número entero')
@@ -32,7 +62,7 @@ export const createTireSchema = z.object({
   size: z.string().min(1),
   kilometers: kilometraje.optional(),
   vehicle: z.string().nullish(),
-  orderNumber: z.string().nullish(),
+  orderNumber: numeroDeOrden,
   receiptNumber: z.string().nullish(),
   createdAt: fechaNoFutura.optional(),
 });
@@ -53,15 +83,15 @@ export const fechaNoFuturaSchema = fechaNoFutura;
 //    del documento nuevo de History. En el resto se strippea en silencio, que alcanza.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Los números de orden y de comprobante son opcionales en todos los caminos y el front
-// manda null cuando no aplican.
+// El número de COMPROBANTE es opcional: lo reserva el backend dentro de la mutación cuando
+// el cliente no lo manda (ver reservarNumeroComprobante).
 const referenciaOpcional = z.string().nullish();
 
 export const updateTireStatusSchema = z.object({
   // La pertenencia al set de estados del tenant la valida el controlador (es configurable
   // por empresa); acá solo la forma.
   status: z.string().min(1, 'El estado es obligatorio'),
-  orderNumber: referenciaOpcional,
+  orderNumber: numeroDeOrden,
   receiptNumber: referenciaOpcional,
 });
 
@@ -72,13 +102,13 @@ export const assignTireSchema = z.object({
   // kmAlta es el ODÓMETRO DEL MÓVIL, no el de la cubierta, pero las cotas aplican igual.
   kmAlta: kilometraje,
   position: z.string().nullish(),
-  orderNumber: referenciaOpcional,
+  orderNumber: numeroDeOrden,
   receiptNumber: referenciaOpcional,
 });
 
 export const unassignTireSchema = z.object({
   kmBaja: kilometraje,
-  orderNumber: referenciaOpcional,
+  orderNumber: numeroDeOrden,
   receiptNumber: referenciaOpcional,
 });
 
@@ -93,7 +123,7 @@ export const correctTireSchema = z.object({
     pattern: z.string().min(1).optional(),
     reason: z.string().nullish(),
     date: z.union([z.string(), z.date()]).nullish(),
-    orderNumber: referenciaOpcional,
+    orderNumber: numeroDeOrden,
     receiptNumber: referenciaOpcional,
   }, { error: 'Falta el bloque "form" con los datos de la corrección' }),
 });
@@ -109,7 +139,7 @@ export const correctHistorySchema = z.object({
       status: z.string().min(1).optional(),
       vehicle: z.union([objectId, z.null()]).optional(),
       reason: z.string().nullish(),
-      orderNumber: referenciaOpcional,
+      orderNumber: numeroDeOrden,
       receiptNumber: referenciaOpcional,
     })
     .strict('Campo no permitido en la corrección de historial'),
@@ -117,6 +147,6 @@ export const correctHistorySchema = z.object({
 
 export const undoHistorySchema = z.object({
   reason: z.string().nullish(),
-  orderNumber: referenciaOpcional,
+  orderNumber: numeroDeOrden,
   receiptNumber: referenciaOpcional,
 });

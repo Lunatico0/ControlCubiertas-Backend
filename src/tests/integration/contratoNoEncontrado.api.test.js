@@ -73,14 +73,13 @@ describe('GET /api/vehicles/:id con un id que no existe', () => {
 describe('Corregir una entrada de historial que no existe', () => {
   it('devuelve 404 con mensaje, no un 500 por TypeError', async () => {
     const tire = await request(app).post('/api/tires').set(auth).send({
-      code: 900, brand: 'B', pattern: 'P', serialNumber: 'SN900', size: 'S', status: 'Nueva',
-    });
+      code: 900, brand: 'B', pattern: 'P', serialNumber: 'SN900', size: 'S', status: 'Nueva', orderNumber: '2026-000001' });
     expect(tire.status).toBe(201);
 
     const res = await request(app)
       .patch(`/api/tires/${tire.body._id}/history/${INEXISTENTE}`)
       .set(auth)
-      .send({ form: { reason: 'ajuste', orderNumber: 'O-1' } });
+      .send({ form: { reason: 'ajuste', orderNumber: '2026-000003' } });
 
     expect(res.status).toBe(404);
     expect(res.body.message).toMatch(/historial/i);

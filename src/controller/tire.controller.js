@@ -155,7 +155,10 @@ class TireController {
     const { id, historyId } = req.params;
     const formData = req.body;
 
-    const { tire, newEntry, correctedEntryId, receiptNumber } = await TireService.undoHistoryEntry(req.db, id, historyId, formData);
+    // Los estados del tenant viajan al servicio: el estado de reversión se resuelve por ROL,
+    // nunca por nombre (un tenant puede llamar "0 km" a su estado inicial).
+    const statuses = await getTenantStatuses(req.auth.tenantId);
+    const { tire, newEntry, correctedEntryId, receiptNumber } = await TireService.undoHistoryEntry(req.db, id, historyId, formData, statuses);
 
     res.status(200).json({
       message: 'Entrada de historial deshecha correctamente.', tire, newEntry, correctedEntryId, receiptNumber

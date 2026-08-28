@@ -33,6 +33,7 @@ const tirePayload = (serial) => ({
   serialNumber: serial,
   size: 'S',
   status: 'Nueva',
+  orderNumber: '2026-000001',
 });
 
 describe('Aislamiento DB-per-tenant por HTTP', () => {

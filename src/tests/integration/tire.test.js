@@ -55,8 +55,7 @@ describe('Flow: Crear, asignar y desasignar cubierta (con auth + tenant)', () =>
       size: '11R22.5',
       status: 'Nueva',
       kilometers: 0,
-      createdAt: new Date(),
-    });
+      createdAt: new Date(), orderNumber: '2026-000001' });
 
     expect(res.status).toBe(201);
     createdTire = res.body;
