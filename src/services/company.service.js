@@ -5,7 +5,7 @@ import { httpError } from '../utils/httpError.js';
 
 // Config de la empresa (tenant) editable por el tenant-admin. Campos del sistema
 // (dbName, plan, status) NO se tocan acá — solo los administra el provisioning/super-admin.
-const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses', 'receiptDesign', 'plateSeparator', 'tireCodePrefix'];
+const EDITABLE = ['name', 'cuit', 'phone', 'address', 'receiptPrefix', 'receiptFooter', 'stockStatuses', 'receiptDesign', 'plateSeparator', 'tireCodePrefix', 'autoPrint'];
 
 // Separadores de patente permitidos: vacío (ninguno) o UN solo carácter razonable. Evita que
 // se cuele texto/alfanuméricos que romperían el display o el round-trip con la patente normalizada.

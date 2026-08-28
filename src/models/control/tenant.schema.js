@@ -23,6 +23,13 @@ export const tenantSchema = new mongoose.Schema(
     // autoincremental). "" = sin prefijo; "TMBC-" muestra el code 12 como "TMBC-12".
     // Configurable desde el panel admin. Ver utils/tireCode en el frontend.
     tireCodePrefix: { type: String, default: '' },
+    // Impresión automática del comprobante al ejecutar una acción sobre una cubierta.
+    // true = comportamiento histórico (se dispara el diálogo de impresión al confirmar).
+    // false = la acción se registra y el comprobante queda para reimprimir desde el historial.
+    // La web NO puede saber si el operario realmente imprimió o canceló el diálogo, así que
+    // la impresión NUNCA gatea la acción: es un efecto posterior, no una condición previa.
+    autoPrint: { type: Boolean, default: true },
+
     // Estados de cubierta configurables por tenant. Rol estable (initial/stock/recap/discard)
     // que sobrevive al renombre; el orden del array define la escalera. initial y discard
     // son obligatorios (validado en company.service). Ver utils/statuses.js.
