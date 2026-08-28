@@ -1,0 +1,24 @@
+# CI del backend. El suite es hermético: los 43 archivos que tocan DB usan mongodb-memory-server,
+# ninguno necesita MONGO_URI ni CONTROL_PLANE_URI, así que corre sin ningún secreto configurado.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ESM puro: jest necesita --experimental-vm-modules, que ya viene en el script `test`.
+      - run: npm test
