@@ -73,6 +73,48 @@ describe('inspeccionarVehiculo · mirar antes de borrar', () => {
   });
 });
 
+// El caso que casi se lleva puesto un dato real: en las bases hay colisiones de patente (un
+// vehículo guardado como "ABC-301" y otro como "ABC301"). `plateMatcher` ignora el separador,
+// así que buscar por patente encuentra LOS DOS. Con un findOne, el script elegía uno
+// arbitrariamente — o sea que un borrado apuntado al vehículo de prueba podía llevarse el real.
+//
+// Ante ambigüedad, una herramienta que borra no adivina: se planta.
+describe('ambigüedad · no elegir por el usuario', () => {
+  it('se niega a borrar si el criterio matchea más de un vehículo', async () => {
+    await db.Vehicle.create({ brand: 'X', mobile: 'Real', licensePlate: 'ABC-301', axles: [], tires: [] });
+    await db.Vehicle.create({ brand: 'X', mobile: 'Test', licensePlate: 'ABC301', axles: [], tires: [] });
+
+    await expect(borrarVehiculoConsistente(db, { licensePlate: 'ABC301' })).rejects.toThrow(/m[áa]s de un/i);
+
+    // Y lo importante: NO borró ninguno.
+    expect(await db.Vehicle.countDocuments()).toBe(2);
+  });
+
+  it('la inspección también avisa en vez de mostrar uno solo', async () => {
+    await db.Vehicle.create({ brand: 'X', mobile: 'Real', licensePlate: 'ABC-301', axles: [], tires: [] });
+    await db.Vehicle.create({ brand: 'X', mobile: 'Test', licensePlate: 'ABC301', axles: [], tires: [] });
+
+    await expect(inspeccionarVehiculo(db, { licensePlate: 'ABC301' })).rejects.toThrow(/m[áa]s de un/i);
+  });
+
+  it('el error nombra a los candidatos, para poder desambiguar por móvil', async () => {
+    await db.Vehicle.create({ brand: 'X', mobile: 'Real', licensePlate: 'ABC-301', axles: [], tires: [] });
+    await db.Vehicle.create({ brand: 'X', mobile: 'Test', licensePlate: 'ABC301', axles: [], tires: [] });
+
+    await expect(borrarVehiculoConsistente(db, { licensePlate: 'ABC301' })).rejects.toThrow(/Real.*Test|Test.*Real/s);
+  });
+
+  it('buscar por MÓVIL sigue siendo exacto, aunque las patentes colisionen', async () => {
+    await db.Vehicle.create({ brand: 'X', mobile: 'Real', licensePlate: 'ABC-301', axles: [], tires: [] });
+    await db.Vehicle.create({ brand: 'X', mobile: 'Test', licensePlate: 'ABC301', axles: [], tires: [] });
+
+    const r = await borrarVehiculoConsistente(db, { mobile: 'Test' });
+
+    expect(r.borrado).toBe(true);
+    expect(await db.Vehicle.findOne({ mobile: 'Real' })).not.toBeNull(); // el real intacto
+  });
+});
+
 describe('borrarVehiculoConsistente · los dos lados del grafo', () => {
   it('desasigna las cubiertas en vez de dejarlas apuntando a un fantasma', async () => {
     await escenario();

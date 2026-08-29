@@ -18,10 +18,30 @@ import { normalizePlate, plateMatcher } from '../utils/plate.js';
 
 // Busca por móvil o por patente. La patente se compara con `plateMatcher`, así que encontrarlo
 // no depende de si el dato está guardado con separador o sin él.
-const buscar = (db, { mobile, licensePlate }) => {
-  if (mobile) return db.Vehicle.findOne({ mobile });
-  if (licensePlate) return db.Vehicle.findOne({ licensePlate: plateMatcher(normalizePlate(licensePlate)) });
-  return null;
+//
+// Y ahí está el peligro: en las bases hay COLISIONES de patente (un vehículo guardado como
+// "ABC-301" y otro como "ABC301", residuo de cuando el chequeo de duplicados no cruzaba las dos
+// formas). `plateMatcher` encuentra los DOS. Con un findOne, un borrado apuntado al vehículo de
+// prueba podía llevarse el real, elegido al azar por el orden del índice.
+//
+// Ante ambigüedad, una herramienta que borra no adivina: se planta y nombra a los candidatos
+// para que quien la corra desambigüe por móvil, que sí es exacto.
+const buscar = async (db, { mobile, licensePlate }) => {
+  const filtro = mobile
+    ? { mobile }
+    : licensePlate
+      ? { licensePlate: plateMatcher(normalizePlate(licensePlate)) }
+      : null;
+  if (!filtro) return null;
+
+  const candidatos = await db.Vehicle.find(filtro);
+  if (candidatos.length > 1) {
+    const detalle = candidatos.map((v) => `${v.mobile} (${v.licensePlate})`).join(' vs ');
+    throw new Error(
+      `El criterio matchea más de un vehículo: ${detalle}. Desambiguá por --movil, que es exacto. NO se borró nada.`,
+    );
+  }
+  return candidatos[0] || null;
 };
 
 // Qué cuelga del vehículo, sin tocar nada. Mirar antes de borrar.
