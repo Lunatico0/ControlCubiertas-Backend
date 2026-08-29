@@ -9,6 +9,16 @@ export const tenantSchema = new mongoose.Schema(
     plan: { type: String, default: 'free' },
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
 
+    // --- Demo de producto (ver services/demo.service.js) ---
+    // `isDemoTemplate` marca el tenant PLANTILLA (Andes Cargo): al loguearse con sus
+    // credenciales, el backend clona en vez de dejar entrar al visitante a la base compartida.
+    // `demoOf` + `demoExpiresAt` marcan un clon EFÍMERO: apunta a su plantilla y se borra a las
+    // 48 hs. Un tenant real de un cliente no tiene ninguno de los tres, que es lo que hace que
+    // la purga no lo pueda tocar ni por error.
+    isDemoTemplate: { type: Boolean, default: false },
+    demoOf: { type: mongoose.Schema.Types.ObjectId, default: null },
+    demoExpiresAt: { type: Date, default: null },
+
     // Datos de la empresa (editables por el tenant-admin desde el panel)
     cuit: { type: String },
     phone: { type: String },

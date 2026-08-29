@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { httpError } from '../utils/httpError.js';
+import { esPlantillaDemo, demoVencido, crearTenantDemo, purgarDemosVencidos } from './demo.service.js';
 
 const ACCESS_TTL = '15m';
 const REFRESH_TTL = '7d';
@@ -46,6 +47,47 @@ const buildClaims = (user, tenant) => ({
   role: user.role,
 });
 
+// Tenant contra el que se firma la sesión.
+//
+// Para casi todos es el suyo, sin vueltas. Para las credenciales de la DEMO el tenant es la
+// PLANTILLA: dejar entrar al visitante ahí significa que lo que carga se queda en la base
+// compartida para siempre y ensucia la demo del próximo. Así que se le clona un tenant
+// descartable y la sesión va contra ese. Ver services/demo.service.js.
+//
+// La purga de vencidos va acá de yapa (barata y acotada: un find indexado + los que venzan):
+// hace que la promesa de las 48 hs no dependa de que el cron esté sano.
+async function resolverTenantDeSesion(Tenant, user) {
+  const tenant = await Tenant.findById(user.tenantId);
+  if (!tenant || tenant.status !== 'active') throw httpError('Tenant inactivo o inexistente', 401);
+  if (!esPlantillaDemo(tenant)) return tenant;
+
+  await purgarDemosVencidos().catch(() => {}); // la limpieza no puede tumbar un login
+  return crearTenantDemo(tenant);
+}
+
+// El refresh de una sesión DEMO no puede re-derivar el tenant desde user.tenantId: eso
+// devolvería al visitante a la plantilla en cuanto se le venza el access token de 15 minutos,
+// perdiendo sus datos a mitad de la prueba y, peor, escribiendo en la base compartida. Por eso
+// el tenant efímero viaja en el refresh token.
+async function tenantDeRefresh(Tenant, user, demoTenantId) {
+  if (!demoTenantId) return resolverTenantDeSesionSinClonar(Tenant, user);
+
+  const demo = await Tenant.findById(demoTenantId);
+  if (!demo || demo.status !== 'active') throw httpError('Tenant inactivo o inexistente', 401);
+  // Un demo vencido no sigue operando aunque el token sea criptográficamente válido: su base
+  // puede haber sido borrada ya por la purga.
+  if (demoVencido(demo)) throw httpError('La sesión de prueba expiró', 401);
+  return demo;
+}
+
+// El camino de siempre, sin clonar: lo usan el refresh de un cliente real y el cambio de
+// contraseña, donde no corresponde crear un tenant nuevo.
+async function resolverTenantDeSesionSinClonar(Tenant, user) {
+  const tenant = await Tenant.findById(user.tenantId);
+  if (!tenant || tenant.status !== 'active') throw httpError('Tenant inactivo o inexistente', 401);
+  return tenant;
+}
+
 export async function login({ User, Tenant }, email, password) {
   const user = await User.findOne({ email: email?.toLowerCase().trim() });
   if (!user || user.status !== 'active') throw httpError(INVALID, 401);
@@ -53,14 +95,16 @@ export async function login({ User, Tenant }, email, password) {
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw httpError(INVALID, 401);
 
-  const tenant = await Tenant.findById(user.tenantId);
-  if (!tenant || tenant.status !== 'active') throw httpError('Tenant inactivo o inexistente', 401);
+  const tenant = await resolverTenantDeSesion(Tenant, user);
 
   const claims = buildClaims(user, tenant);
+  // El tenant efímero viaja en el REFRESH token: sin esto, el primer refresh devolvería al
+  // visitante a la plantilla. Para un usuario normal el campo no existe y nada cambia.
+  const demoTenantId = tenant.demoOf ? claims.tenantId : undefined;
 
   return {
     accessToken: signAccessToken(claims),
-    refreshToken: signRefreshToken({ userId: claims.userId, tv: versionOf(user) }),
+    refreshToken: signRefreshToken({ userId: claims.userId, tv: versionOf(user), ...(demoTenantId ? { demoTenantId } : {}) }),
     user: {
       id: user._id,
       email: user.email,
@@ -96,8 +140,8 @@ export async function changePassword({ User, Tenant }, userId, currentPassword, 
 
   // El tenant se relee DESPUÉS de guardar: si quedó inactivo entremedio, la contraseña ya
   // cambió (es lo que el usuario pidió) y el 401 termina la sesión, que es lo correcto.
-  const tenant = await Tenant.findById(user.tenantId);
-  if (!tenant || tenant.status !== 'active') throw httpError('Tenant inactivo o inexistente', 401);
+  // Sin clonar: cambiar la contraseña no es empezar una sesión de demo nueva.
+  const tenant = await resolverTenantDeSesionSinClonar(Tenant, user);
 
   const claims = buildClaims(user, tenant);
   return {
@@ -109,14 +153,13 @@ export async function changePassword({ User, Tenant }, userId, currentPassword, 
 // Refresh: valida el refresh token, recarga user + tenant y emite un nuevo access token
 // (los datos del tenant pueden haber cambiado, así que se releen del control plane).
 export async function refresh({ User, Tenant }, refreshToken) {
-  const { userId, tv } = verifyRefreshToken(refreshToken);
+  const { userId, tv, demoTenantId } = verifyRefreshToken(refreshToken);
   const user = await User.findById(userId);
   if (!user || user.status !== 'active') throw httpError(INVALID, 401);
   // Un token emitido antes del último cambio de contraseña ya no vale.
   if ((tv ?? 0) !== versionOf(user)) throw httpError(INVALID, 401);
 
-  const tenant = await Tenant.findById(user.tenantId);
-  if (!tenant || tenant.status !== 'active') throw httpError('Tenant inactivo o inexistente', 401);
+  const tenant = await tenantDeRefresh(Tenant, user, demoTenantId);
 
   const claims = buildClaims(user, tenant);
   return { accessToken: signAccessToken(claims) };
