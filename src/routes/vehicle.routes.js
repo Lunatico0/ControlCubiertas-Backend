@@ -3,7 +3,7 @@ import VehicleController from '../controller/vehicle.controller.js';
 import { validateVehicleExists } from '../middleware/vehicleExists.js';
 import vehicleController from '../controller/vehicle.controller.js';
 import { validate } from '../middleware/validate.js';
-import { createVehicleSchema, updateAxlesSchema, createVehicleTypeSchema, updateVehicleDetailsSchema, updateVehicleTiresSchema } from '../validators/vehicle.validator.js';
+import { createVehicleSchema, updateAxlesSchema, updateVehicleServiceSchema, createVehicleTypeSchema, updateVehicleDetailsSchema, updateVehicleTiresSchema } from '../validators/vehicle.validator.js';
 
 const router = express.Router();
 
@@ -63,7 +63,7 @@ router.post('/types', validate(createVehicleTypeSchema), VehicleController.creat
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/:id', VehicleController.getById);
+router.get('/:id', validateVehicleExists, VehicleController.getById);
 
 /**
  * @swagger
@@ -107,6 +107,42 @@ router.get('/:id/positions', VehicleController.getPositions);
  *         description: Vehículo no encontrado
  */
 router.patch('/:id/axles', validate(updateAxlesSchema), VehicleController.updateAxles);
+
+/**
+ * @swagger
+ * /api/vehicles/{id}/service:
+ *   patch:
+ *     summary: Marcar un vehículo fuera de servicio (o devolverlo al servicio)
+ *     description: >
+ *       Anotación sobre el vehículo: no lo da de baja ni toca sus cubiertas montadas. Un
+ *       vehículo fuera de servicio deja de contar como pendiente en la lista del día.
+ *     tags: [Vehicles]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [outOfService]
+ *             properties:
+ *               outOfService:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Vehículo actualizado
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Vehículo no encontrado
+ */
+router.patch('/:id/service', validate(updateVehicleServiceSchema), VehicleController.setService);
 
 /**
  * @swagger

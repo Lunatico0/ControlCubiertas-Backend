@@ -47,7 +47,7 @@ const mountTire = (vehId, position) => {
 
 describe('Guard: reconfigurar ejes con cubierta montada (guard duro)', () => {
   it('409 si el layout nuevo elimina una posición ocupada', async () => {
-    const id = await mkVehicle('M-guard1', 'GRD-1');
+    const id = await mkVehicle('M-guard1', 'GRD101');
     await mountTire(id, 'E2-DE'); // ocupa el eje 2
     const res = await request(app).patch(`/api/vehicles/${id}/axles`).set(auth)
       .send({ axles: [{ type: 'simple' }] }); // saca el eje 2 → E2-DE desaparece
@@ -56,7 +56,7 @@ describe('Guard: reconfigurar ejes con cubierta montada (guard duro)', () => {
   });
 
   it('permite agregar un eje si no se pierde ninguna posición ocupada', async () => {
-    const id = await mkVehicle('M-guard2', 'GRD-2');
+    const id = await mkVehicle('M-guard2', 'GRD102');
     await mountTire(id, 'E2-DE');
     const res = await request(app).patch(`/api/vehicles/${id}/axles`).set(auth)
       .send({ axles: [{ type: 'simple' }, { type: 'dual' }, { type: 'dual' }] }); // agrega eje 3, mantiene E1/E2
@@ -65,7 +65,7 @@ describe('Guard: reconfigurar ejes con cubierta montada (guard duro)', () => {
   });
 
   it('permite reconfigurar libremente si no hay cubiertas montadas', async () => {
-    const id = await mkVehicle('M-guard3', 'GRD-3');
+    const id = await mkVehicle('M-guard3', 'GRD103');
     const res = await request(app).patch(`/api/vehicles/${id}/axles`).set(auth)
       .send({ axles: [{ type: 'simple' }] });
     expect(res.status).toBe(200);
@@ -73,7 +73,7 @@ describe('Guard: reconfigurar ejes con cubierta montada (guard duro)', () => {
   });
 
   it('bloquea reconfigurar si hay una cubierta montada sin posición (modelo viejo)', async () => {
-    const id = await mkVehicle('M-guard4', 'GRD-4'); // ya tiene ejes
+    const id = await mkVehicle('M-guard4', 'GRD104'); // ya tiene ejes
     await mountTire(id, null); // montada sin posición
     const res = await request(app).patch(`/api/vehicles/${id}/axles`).set(auth)
       .send({ axles: [{ type: 'dual' }, { type: 'dual' }] });
@@ -82,7 +82,7 @@ describe('Guard: reconfigurar ejes con cubierta montada (guard duro)', () => {
 
   it('permite la PRIMERA configuración (axles vacío) aunque haya cubierta montada sin posición', async () => {
     const veh = await request(app).post('/api/vehicles').set(auth)
-      .send({ brand: 'Volvo', mobile: 'M-mig', licensePlate: 'MIG-1' }); // sin ejes
+      .send({ brand: 'Volvo', mobile: 'M-mig', licensePlate: 'MIG100' }); // sin ejes
     await mountTire(veh.body._id, null); // montada sin posición (legacy)
     const res = await request(app).patch(`/api/vehicles/${veh.body._id}/axles`).set(auth)
       .send({ axles: [{ type: 'simple' }, { type: 'dual' }] });
@@ -90,7 +90,7 @@ describe('Guard: reconfigurar ejes con cubierta montada (guard duro)', () => {
   });
 
   it('guarda el type (tipo de vehículo)', async () => {
-    const id = await mkVehicle('M-type', 'TYP-1');
+    const id = await mkVehicle('M-type', 'TYP101');
     const res = await request(app).patch(`/api/vehicles/${id}/axles`).set(auth)
       .send({ axles: [{ type: 'simple' }, { type: 'dual' }], type: 'Camión 4×2' });
     expect(res.status).toBe(200);

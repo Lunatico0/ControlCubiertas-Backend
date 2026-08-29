@@ -34,7 +34,7 @@ afterAll(async () => {
 
 const mkVehicle = async () => {
   const res = await request(app).post('/api/vehicles').set(auth)
-    .send({ brand: 'Scania', mobile: `M-${++seq}`, licensePlate: `P-${seq}`, axles: [{ type: 'simple' }, { type: 'dual' }] });
+    .send({ brand: 'Scania', mobile: `M-${++seq}`, licensePlate: `PAA${String(seq).padStart(3, '0')}`, axles: [{ type: 'simple' }, { type: 'dual' }] });
   return res.body._id;
 };
 const mkTire = (status) => {
@@ -47,7 +47,7 @@ describe('PATCH /api/tires/:id/assign — guard de cubierta "A recapar"', () => 
     const vehId = await mkVehicle();
     const tire = await mkTire('A recapar');
     const res = await request(app).patch(`/api/tires/${tire._id}/assign`).set(auth)
-      .send({ vehicle: vehId, kmAlta: 1000, orderNumber: 'ORD-1', receiptNumber: '0001-00000001', position: 'E1-I' });
+      .send({ vehicle: vehId, kmAlta: 1000, orderNumber: '2026-000001', receiptNumber: '0001-00000001', position: 'E1-I' });
     expect(res.status).toBe(409);
     expect(res.body.message).toMatch(/recap/i);
   });
@@ -56,7 +56,7 @@ describe('PATCH /api/tires/:id/assign — guard de cubierta "A recapar"', () => 
     const vehId = await mkVehicle();
     const tire = await mkTire('Nueva');
     const res = await request(app).patch(`/api/tires/${tire._id}/assign`).set(auth)
-      .send({ vehicle: vehId, kmAlta: 1000, orderNumber: 'ORD-2', receiptNumber: '0001-00000002', position: 'E1-I' });
+      .send({ vehicle: vehId, kmAlta: 1000, orderNumber: '2026-000002', receiptNumber: '0001-00000002', position: 'E1-I' });
     expect(res.status).toBe(200);
     expect(String(res.body.tire.vehicle?._id || res.body.tire.vehicle)).toBe(String(vehId));
   });

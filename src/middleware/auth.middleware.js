@@ -27,12 +27,18 @@ export function authenticate(req, res, next) {
 export async function requireActiveTenant(req, res, next) {
   try {
     const { Tenant } = getControlModels();
-    const tenant = await Tenant.findById(req.auth.tenantId).select('status');
+    const tenant = await Tenant.findById(req.auth.tenantId).select('status dbName');
     if (!tenant) {
       return res.status(403).json({ message: 'Tu empresa ya no está disponible. Contactá al administrador.', code: 'TENANT_INACTIVE' });
     }
     if (tenant.status === 'suspended') {
       return res.status(403).json({ message: 'Tu empresa está suspendida. Contactá al administrador.', code: 'TENANT_INACTIVE' });
+    }
+    // attachDb usa el dbName FIRMADO en el JWT. Si el tenant migró de base (cutover, o un
+    // dbName corregido a mano), los tokens vivos seguirían escribiendo en la base vieja hasta
+    // que expiren. Contrastarlo acá cuesta cero: es la misma query que ya se hizo.
+    if (req.auth.dbName && tenant.dbName && req.auth.dbName !== tenant.dbName) {
+      return res.status(403).json({ message: 'Tu sesión ya no es válida. Volvé a iniciar sesión.', code: 'TENANT_INACTIVE' });
     }
     next();
   } catch (err) {

@@ -19,7 +19,7 @@ const models = () => getTenantDb(DB_NAME).models;
 let seq = 8000;
 const cubiertaValida = (extra = {}) => ({
   code: ++seq, brand: 'Bridgestone', pattern: 'Liso', serialNumber: `SN-${seq}`,
-  size: '295/80 R22.5', status: 'Nueva', ...extra,
+  size: '295/80 R22.5', status: 'Nueva', orderNumber: `2026-${String(seq).padStart(6, '0')}`, ...extra,
 });
 
 const crear = (body) => request(app).post('/api/tires').set(auth).send(body);
@@ -91,7 +91,7 @@ describe('Estado: siempre uno de los configurados por el tenant', () => {
     const res = await request(app)
       .patch(`/api/tires/${tireId}/history/${entrada._id}`)
       .set(auth)
-      .send({ form: { status: 'Estado Inventado Que No Existe', reason: 'test', orderNumber: 'ORD-X' } });
+      .send({ form: { status: 'Estado Inventado Que No Existe', reason: 'test', orderNumber: '2026-000040' } });
 
     expect(res.status).toBe(400);
 

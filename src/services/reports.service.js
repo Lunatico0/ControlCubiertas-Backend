@@ -5,6 +5,17 @@ import { httpError } from '../utils/httpError.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Un movimiento corregido o deshecho sigue siendo el MISMO hecho operativo: la corrección
+// reemplaza los datos, no borra el kilometraje recorrido. Los reportes tienen que contar
+// 'Asignación' y 'Corrección-Asignación' como lo mismo (idem Desasignación), como ya hacía
+// getTenantReports con 'Estado'. Sin esto, cualquier movimiento corregido desaparecía del km
+// por vehículo y del heatmap por posición, y de forma inconsistente entre secciones.
+const ASIGNACIONES = ['Asignación', 'Corrección-Asignación'];
+const DESASIGNACIONES = ['Desasignación', 'Corrección-Desasignación'];
+const MOVIMIENTOS = [...ASIGNACIONES, ...DESASIGNACIONES];
+const esAsignacion = (t) => ASIGNACIONES.includes(t);
+const esDesasignacion = (t) => DESASIGNACIONES.includes(t);
+
 const round = (n) => Math.round(n);
 const round1 = (n) => Math.round(n * 10) / 10;
 const avg = (nums) => (nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0);
@@ -73,7 +84,7 @@ export async function getTenantReports(dbName, statuses, { range } = {}) {
   // Etapas del ciclo (todo rol menos discard): km promedio de desasignaciones en esa etapa.
   const stageStatuses = statuses.filter((s) => s.role !== 'discard');
   const cutoff = rangeCutoff(range);
-  const stageFilter = { type: 'Desasignación', status: { $in: stageStatuses.map((s) => s.name) } };
+  const stageFilter = { type: { $in: DESASIGNACIONES }, status: { $in: stageStatuses.map((s) => s.name) } };
   if (cutoff) stageFilter.date = { $gte: cutoff };
   const stageHistory = stageStatuses.length ? await History.find(stageFilter).select('status km').lean() : [];
   const kmByStatus = new Map();
@@ -106,7 +117,7 @@ export async function getVehicleReports(dbName, statuses = []) {
   let lvl = 0;
   for (const s of statuses) if (s?.role === 'initial' || s?.role === 'stock') levelOf[s.name] = lvl++;
 
-  const moves = await History.find({ type: { $in: ['Asignación', 'Desasignación'] } })
+  const moves = await History.find({ type: { $in: MOVIMIENTOS } })
     .select('tire type vehicle kmAlta kmBaja km date')
     .sort({ tire: 1, date: 1 })
     .lean();
@@ -124,10 +135,10 @@ export async function getVehicleReports(dbName, statuses = []) {
   for (const m of moves) {
     const tireKey = String(m.tire);
     if (tireKey !== currentTire) { open = null; currentTire = tireKey; }
-    if (m.type === 'Asignación') {
+    if (esAsignacion(m.type)) {
       open = { vehicle: m.vehicle, kmAlta: m.kmAlta || 0 };
       if (m.vehicle) ensure(m.vehicle).tires.add(tireKey);
-    } else if (m.type === 'Desasignación') {
+    } else if (esDesasignacion(m.type)) {
       if (open?.vehicle) {
         const km = m.km != null ? m.km : Math.max(0, (m.kmBaja || 0) - open.kmAlta);
         const a = ensure(open.vehicle);
@@ -196,7 +207,7 @@ export async function getVehicleWear(dbName, vehicleId, statuses = []) {
   for (const s of statuses) if (s?.role === 'initial' || s?.role === 'stock') levelOf[s.name] = lvl++;
 
   // km por posición: pareo asignación(posición)→desasignación(km) por cubierta, en orden.
-  const moves = await History.find({ type: { $in: ['Asignación', 'Desasignación'] } })
+  const moves = await History.find({ type: { $in: MOVIMIENTOS } })
     .select('tire type vehicle position kmAlta kmBaja km date')
     .sort({ tire: 1, date: 1 })
     .lean();
@@ -206,9 +217,9 @@ export async function getVehicleWear(dbName, vehicleId, statuses = []) {
   for (const m of moves) {
     const tireKey = String(m.tire);
     if (tireKey !== currentTire) { open = null; currentTire = tireKey; }
-    if (m.type === 'Asignación') {
+    if (esAsignacion(m.type)) {
       open = { vehicle: m.vehicle ? String(m.vehicle) : null, position: m.position || null };
-    } else if (m.type === 'Desasignación') {
+    } else if (esDesasignacion(m.type)) {
       if (open && open.vehicle === String(vehicleId) && open.position) {
         const km = m.km != null ? m.km : Math.max(0, (m.kmBaja || 0) - (m.kmAlta || 0));
         posKm[open.position] = (posKm[open.position] || 0) + km;

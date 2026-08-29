@@ -16,6 +16,11 @@ import tireRoutes from './routes/tire.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import { httpError } from './utils/httpError.js';
+import { readFileSync } from 'node:fs';
+
+// La versión sale del package.json, no de un literal: el endpoint raíz anunciaba 1.2.0 con el
+// paquete en 2.x, así que no servía para verificar qué está desplegado, que es su único uso.
+const { version: VERSION } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 config();
 
@@ -52,18 +57,37 @@ const corsOptions = origenesPermitidos.length
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Límite del body EXPLÍCITO. El default de Express son 100 kb, y receiptDesign.logo se
+// persiste como dataURL: un logo normal ya lo pasa y el tenant recibía un 413 con el HTML de
+// error de Express, sin mensaje útil. 2 MB es holgado para un logo y sigue siendo un techo:
+// lo que se guarda acá viaja en cada GET /api/company de todos los usuarios del tenant.
+const BODY_LIMIT = process.env.BODY_LIMIT || '2mb';
+app.use(express.json({ limit: BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
 
-// Swagger UI (solo para desarrollo local)
-app.use('/api-docs', swaggerUi.serve);
-app.get('/api-docs', swaggerUi.setup(specs, swaggerUiOptions));
-
-// Rutas de documentación
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(specs);
+// El 413 y el JSON malformado de body-parser tienen que salir como JSON: el front sólo sabe
+// leer { message }. Sin esto llega el HTML de error de Express y el toast queda mudo.
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ message: `El contenido enviado supera el límite de ${BODY_LIMIT}.` });
+  }
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ message: 'El cuerpo de la petición no es JSON válido.' });
+  }
+  return next(err);
 });
+
+// Swagger UI: NUNCA en producción. vercel.json rutea todo al handler, así que sin este guard
+// /api-docs entrega el mapa completo de endpoints a cualquiera que lo pida.
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve);
+  app.get('/api-docs', swaggerUi.setup(specs, swaggerUiOptions));
+
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(specs);
+  });
+}
 
 // Garantiza el control plane conectado ANTES de procesar la request. Idempotente
 // (instantáneo si ya conectó). Necesario en serverless: el connectControlPlane() del cold
@@ -93,8 +117,8 @@ app.use('/api/orders', authenticate, requireActiveTenant, attachDb, orderRoutes)
 // Rutas básicas
 app.get('/', (req, res) => {
   res.json({
-    message: 'API de Gestión de Cubiertas',
-    version: '1.2.0',
+    message: 'TireOps API',
+    version: VERSION,
     documentation: '/api-docs',
     environment: process.env.NODE_ENV || 'development',
     endpoints: {

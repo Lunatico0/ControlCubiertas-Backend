@@ -59,8 +59,7 @@ let codeSeq = 500;
 const nuevaCubierta = async () => {
   const code = ++codeSeq;
   const res = await request(app).post('/api/tires').set(auth).send({
-    code, brand: 'Bridgestone', pattern: 'Liso', serialNumber: `SN-${code}`, size: '295/80 R22.5', status: 'Nueva',
-  });
+    code, brand: 'Bridgestone', pattern: 'Liso', serialNumber: `SN-${code}`, size: '295/80 R22.5', status: 'Nueva', orderNumber: '2026-000001' });
   expect(res.status).toBe(201);
   return res.body._id;
 };
@@ -69,8 +68,7 @@ let plateSeq = 500;
 const nuevoVehiculo = async (tires = []) => {
   const n = ++plateSeq;
   const res = await request(app).post('/api/vehicles').set(auth).send({
-    brand: 'Scania', mobile: `Movil ${n}`, licensePlate: `AAA-${n}`, tires,
-  });
+    brand: 'Scania', mobile: `Movil ${n}`, licensePlate: `AAA-${n}`, tires, orderNumber: '2026-000001' });
   return res;
 };
 
@@ -138,7 +136,7 @@ describe('Invariante vehicle.tires[] ↔ tire.vehicle', () => {
     const tireId = await nuevaCubierta();
 
     const asignar = await request(app).patch(`/api/tires/${tireId}/assign`).set(auth)
-      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: 'ORD-1' });
+      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000041' });
     expect(asignar.status).toBe(200);
     expect(await tiresOf(veh.body._id)).toEqual([String(tireId)]);
 
@@ -146,7 +144,7 @@ describe('Invariante vehicle.tires[] ↔ tire.vehicle', () => {
     expect(hist).toHaveLength(1);
 
     const undo = await request(app).post(`/api/tires/${tireId}/history/${hist[0]._id}/undo`).set(auth)
-      .send({ orderNumber: 'ORD-UNDO-1' });
+      .send({ orderNumber: '2026-000042' });
     expect(undo.status).toBe(200);
 
     // la cubierta ya no pertenece al vehículo: tiene que salir también de su array
@@ -161,9 +159,9 @@ describe('Invariante vehicle.tires[] ↔ tire.vehicle', () => {
     const tireId = await nuevaCubierta();
 
     await request(app).patch(`/api/tires/${tireId}/assign`).set(auth)
-      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: 'ORD-2' });
+      .send({ vehicle: veh.body._id, kmAlta: 1000, orderNumber: '2026-000043' });
     const desasignar = await request(app).patch(`/api/tires/${tireId}/unassign`).set(auth)
-      .send({ kmBaja: 2000, orderNumber: 'ORD-3' });
+      .send({ kmBaja: 2000, orderNumber: '2026-000044' });
     expect(desasignar.status).toBe(200);
     expect(await tiresOf(veh.body._id)).toEqual([]);
 
@@ -171,7 +169,7 @@ describe('Invariante vehicle.tires[] ↔ tire.vehicle', () => {
     expect(hist).toHaveLength(1);
 
     const undo = await request(app).post(`/api/tires/${tireId}/history/${hist[0]._id}/undo`).set(auth)
-      .send({ orderNumber: 'ORD-UNDO-2' });
+      .send({ orderNumber: '2026-000045' });
     expect(undo.status).toBe(200);
 
     // vuelve a pertenecer al vehículo: los DOS lados otra vez

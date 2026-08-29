@@ -49,3 +49,10 @@ export const updateVehicleDetailsSchema = z.object({
 export const updateVehicleTiresSchema = z.object({
   tires: z.array(objectId, { message: 'Debe proporcionar un array válido de cubiertas' }),
 });
+
+// PATCH /vehicles/:id/service — marcar el vehículo fuera de servicio (o devolverlo). Booleano
+// estricto: un "si" que se guardara como truthy dejaría un vehículo parado sin que nadie lo
+// haya decidido (t145).
+export const updateVehicleServiceSchema = z.object({
+  outOfService: z.boolean({ required_error: 'outOfService es obligatorio', invalid_type_error: 'outOfService tiene que ser true o false' }),
+});

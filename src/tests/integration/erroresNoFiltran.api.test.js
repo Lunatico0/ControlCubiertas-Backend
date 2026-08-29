@@ -61,7 +61,7 @@ describe('el cliente nunca ve las internas del server', () => {
       request(app).post('/api/auth/login').send({ email: 12345, password: 'x' }),
       request(app).post('/api/auth/refresh').send({ refreshToken: 'no-es-un-jwt' }),
       request(app).get(`/api/tires/${ID_INEXISTENTE}`).set(auth),
-      request(app).patch(`/api/tires/${ID_INEXISTENTE}/status`).set(auth).send({ status: 'Nueva', orderNumber: 'O' }),
+      request(app).patch(`/api/tires/${ID_INEXISTENTE}/status`).set(auth).send({ status: 'Nueva', orderNumber: '2026-000014' }),
     ]);
     for (const res of respuestas) {
       expect(res.status).toBeGreaterThanOrEqual(400);
@@ -79,13 +79,12 @@ describe('los errores de negocio son 4xx, no 500', () => {
 
   it('corregir sin cambios reales da 400 y explica por qué', async () => {
     const alta = await request(app).post('/api/tires').set(auth).send({
-      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S', serialNumber: `SN${seq}`,
-    });
+      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S', serialNumber: `SN${seq}`, orderNumber: '2026-000001' });
     const id = alta.body.tire?._id || alta.body._id;
 
     // Mismos valores que ya tiene: el servicio corta con "no se detectaron cambios".
     const res = await request(app).patch(`/api/tires/${id}/correct`).set(auth)
-      .send({ form: { brand: 'B', reason: 'sin cambios', orderNumber: 'O-1' } });
+      .send({ form: { brand: 'B', reason: 'sin cambios', orderNumber: '2026-000015' } });
 
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/cambio/i);
@@ -93,13 +92,12 @@ describe('los errores de negocio son 4xx, no 500', () => {
 
   it('deshacer el alta de una cubierta da 4xx con el motivo, no 500', async () => {
     const alta = await request(app).post('/api/tires').set(auth).send({
-      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S', serialNumber: `SN${seq}`,
-    });
+      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S', serialNumber: `SN${seq}`, orderNumber: '2026-000001' });
     const id = alta.body.tire?._id || alta.body._id;
     const entradaAlta = (await db.History.find({ tire: id, type: 'Alta' }))[0];
 
     const res = await request(app).post(`/api/tires/${id}/history/${entradaAlta._id}/undo`).set(auth)
-      .send({ orderNumber: 'O-2' });
+      .send({ orderNumber: '2026-000016' });
 
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(res.status).toBeLessThan(500);
@@ -108,12 +106,11 @@ describe('los errores de negocio son 4xx, no 500', () => {
 
   it('un vehículo inexistente al asignar da 4xx, no 500', async () => {
     const alta = await request(app).post('/api/tires').set(auth).send({
-      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S', serialNumber: `SN${seq}`,
-    });
+      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S', serialNumber: `SN${seq}`, orderNumber: '2026-000001' });
     const id = alta.body.tire?._id || alta.body._id;
 
     const res = await request(app).patch(`/api/tires/${id}/assign`).set(auth)
-      .send({ vehicle: ID_INEXISTENTE, kmAlta: 1000, orderNumber: 'O-3' });
+      .send({ vehicle: ID_INEXISTENTE, kmAlta: 1000, orderNumber: '2026-000017' });
 
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(res.status).toBeLessThan(500);
@@ -122,12 +119,11 @@ describe('los errores de negocio son 4xx, no 500', () => {
 
   it('una entrada de historial inexistente da 4xx, no 500', async () => {
     const alta = await request(app).post('/api/tires').set(auth).send({
-      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S', serialNumber: `SN${seq}`,
-    });
+      status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: 'S', serialNumber: `SN${seq}`, orderNumber: '2026-000001' });
     const id = alta.body.tire?._id || alta.body._id;
 
     const res = await request(app).post(`/api/tires/${id}/history/${ID_INEXISTENTE}/undo`).set(auth)
-      .send({ orderNumber: 'O-4' });
+      .send({ orderNumber: '2026-000018' });
 
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(res.status).toBeLessThan(500);

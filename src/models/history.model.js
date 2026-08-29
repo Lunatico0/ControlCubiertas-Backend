@@ -44,4 +44,12 @@ export const historySchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Índices explícitos: getById, unassignVehicle, los reportes y el histórico de comprobantes
+// recorren History por cubierta y en orden de fecha. Sin esto son collection scans que en un
+// tenant con años de operación pegan contra el timeout de la función serverless.
+historySchema.index({ tire: 1, date: 1 });
+historySchema.index({ type: 1 });
+historySchema.index({ vehicle: 1 });
+historySchema.index({ receiptNumber: 1 });
+
 export default mongoose.model('History', historySchema);

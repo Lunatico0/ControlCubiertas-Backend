@@ -36,12 +36,12 @@ const cuerpo = (res) => JSON.stringify(res.body);
 
 describe('El error nunca filtra detalle interno', () => {
   it('POST /api/tires con código duplicado da un mensaje de negocio, sin E11000 ni el nombre de la DB', async () => {
-    const tire = { code: 7001, brand: 'B', pattern: 'P', serialNumber: 'SN-7001', size: 'S', status: 'Nueva' };
+    const tire = { code: 7001, brand: 'B', pattern: 'P', serialNumber: 'SN-7001', size: 'S', status: 'Nueva', orderNumber: '2026-007001' };
 
     const primera = await request(app).post('/api/tires').set(auth).send(tire);
     expect(primera.status).toBe(201);
 
-    const duplicada = await request(app).post('/api/tires').set(auth).send({ ...tire, serialNumber: 'SN-7001-bis' });
+    const duplicada = await request(app).post('/api/tires').set(auth).send({ ...tire, serialNumber: 'SN-7001-bis', orderNumber: '2026-000001' });
     expect(duplicada.status).toBe(400);
 
     const texto = cuerpo(duplicada);
@@ -71,22 +71,21 @@ describe('Un :id malformado responde, no cuelga ni explota', () => {
 describe('Un body inválido da 400, no 500', () => {
   const crearCubierta = async (code) => {
     const res = await request(app).post('/api/tires').set(auth).send({
-      code, brand: 'B', pattern: 'P', serialNumber: `SN-${code}`, size: 'S', status: 'Nueva',
-    });
+      code, brand: 'B', pattern: 'P', serialNumber: `SN-${code}`, size: 'S', status: 'Nueva', orderNumber: '2026-000001' });
     expect(res.status).toBe(201);
     return res.body._id;
   };
 
   it('PATCH /api/tires/:id/correct con el body vacío', async () => {
     const id = await crearCubierta(7100);
-    const res = await request(app).patch(`/api/tires/${id}/correct`).set(auth).send({});
+    const res = await request(app).patch(`/api/tires/${id}/correct`).set(auth).send({ orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
     expect(cuerpo(res)).not.toMatch(/Cannot destructure|undefined|TypeError/i);
   });
 
   it('PATCH /api/tires/:id/correct sin la clave form', async () => {
     const id = await crearCubierta(7101);
-    const res = await request(app).patch(`/api/tires/${id}/correct`).set(auth).send({ orderNumber: 'X-1' });
+    const res = await request(app).patch(`/api/tires/${id}/correct`).set(auth).send({ orderNumber: '2026-000019' });
     expect(res.status).toBe(400);
     expect(cuerpo(res)).not.toMatch(/Cannot destructure|TypeError/i);
   });

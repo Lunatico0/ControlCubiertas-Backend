@@ -24,8 +24,7 @@ const DB_NAME = 'tenant_correlativo';
 
 const crearCubierta = async () => {
   const res = await request(app).post('/api/tires').set(auth).send({
-    status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: '295/80', serialNumber: `SN${seq}`,
-  });
+    status: 'Nueva', code: ++seq, brand: 'B', pattern: 'P', size: '295/80', serialNumber: `SN${seq}`, orderNumber: '2026-000001' });
   return res.body.tire?._id || res.body._id;
 };
 
@@ -56,13 +55,13 @@ describe('correlativo de comprobante', () => {
     const tireId = await crearCubierta();
     const v = await crearVehiculo();
     await request(app).patch(`/api/tires/${tireId}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: 50000, orderNumber: 'O-1' });
+      .send({ vehicle: String(v._id), kmAlta: 50000, orderNumber: '2026-000006' });
 
     const antes = await numeroActual();
 
     // km de baja MENOR al de alta: el servicio lo rechaza con 400.
     const res = await request(app).patch(`/api/tires/${tireId}/unassign`).set(auth)
-      .send({ kmBaja: 100, orderNumber: 'O-2' });
+      .send({ kmBaja: 100, orderNumber: '2026-000007' });
     expect(res.status).toBe(400);
 
     expect(await numeroActual()).toBe(antes);
@@ -72,15 +71,15 @@ describe('correlativo de comprobante', () => {
     const tireId = await crearCubierta();
     const v = await crearVehiculo();
     await request(app).patch(`/api/tires/${tireId}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: 50000, orderNumber: 'O-3' });
+      .send({ vehicle: String(v._id), kmAlta: 50000, orderNumber: '2026-000008' });
 
     const antes = await numeroActual();
 
-    await request(app).patch(`/api/tires/${tireId}/unassign`).set(auth).send({ kmBaja: 10, orderNumber: 'O-4' });
-    await request(app).patch(`/api/tires/${tireId}/unassign`).set(auth).send({ kmBaja: 20, orderNumber: 'O-5' });
+    await request(app).patch(`/api/tires/${tireId}/unassign`).set(auth).send({ kmBaja: 10, orderNumber: '2026-000009' });
+    await request(app).patch(`/api/tires/${tireId}/unassign`).set(auth).send({ kmBaja: 20, orderNumber: '2026-000010' });
 
     const ok = await request(app).patch(`/api/tires/${tireId}/unassign`).set(auth)
-      .send({ kmBaja: 60000, orderNumber: 'O-6' });
+      .send({ kmBaja: 60000, orderNumber: '2026-000011' });
     expect(ok.status).toBe(200);
 
     // Exactamente UNO consumido: el de la operación que sí ocurrió.
@@ -91,7 +90,7 @@ describe('correlativo de comprobante', () => {
     const tireId = await crearCubierta();
     const v = await crearVehiculo();
     const res = await request(app).patch(`/api/tires/${tireId}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: 'O-7' });
+      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: '2026-000012' });
 
     expect(res.status).toBe(200);
     expect(res.body.receiptNumber).toMatch(/^\d{4}-\d{8}$/);
@@ -107,7 +106,7 @@ describe('correlativo de comprobante', () => {
     const antes = await numeroActual();
 
     const res = await request(app).patch(`/api/tires/${tireId}/assign`).set(auth)
-      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: 'O-8', receiptNumber: '0001-00009999' });
+      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: '2026-000013', receiptNumber: '0001-00009999' });
 
     expect(res.status).toBe(200);
     expect(res.body.receiptNumber).toBe('0001-00009999');
@@ -117,8 +116,7 @@ describe('correlativo de comprobante', () => {
   it('un alta rechazada tampoco consume número', async () => {
     const antes = await numeroActual();
     const res = await request(app).post('/api/tires').set(auth).send({
-      status: 'Nueva', code: -5, brand: 'B', pattern: 'P', size: 'S', serialNumber: 'SN-INVALIDA',
-    });
+      status: 'Nueva', code: -5, brand: 'B', pattern: 'P', size: 'S', serialNumber: 'SN-INVALIDA', orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
     expect(await numeroActual()).toBe(antes);
   });

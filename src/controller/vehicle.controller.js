@@ -1,6 +1,7 @@
 import { addHistoryEntry } from '../utils/utils.js';
 import { buildVehiclePositions, generatePositions } from '../utils/axles.js';
-import { normalizePlate } from '../utils/plate.js';
+import { plateMatcher, assertValidPlate } from '../utils/plate.js';
+import { getTenantPlateFormats } from '../services/company.service.js';
 import { httpError } from '../utils/httpError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -13,7 +14,10 @@ async function assertVehicleUnique(db, { mobile, plate, excludeId }) {
   if (await db.Vehicle.findOne(scope({ mobile }))) {
     throw httpError('Ya existe un vehículo con ese número de móvil', 400, 'mobile');
   }
-  if (await db.Vehicle.findOne(scope({ licensePlate: plate }))) {
+  // t138: la comparación NO puede ser por igualdad contra la forma canónica. Hay filas legacy
+  // guardadas con separador ("ABC-301") que la igualdad no encuentra, y por ahí se colaba el
+  // alta de un duplicado. plateMatcher ignora los separadores y ancla los dos extremos.
+  if (await db.Vehicle.findOne(scope({ licensePlate: plateMatcher(plate) }))) {
     throw httpError('Ya existe un vehículo con esa patente', 400, 'licensePlate');
   }
 }
@@ -31,10 +35,12 @@ class VehicleController {
     res.json(vehicles);
   });
 
+  // req.vehicle lo deja validateVehicleExists: un id malformado sale 400 y uno inexistente 404.
+  // Antes esta ruta devolvía 200 con body null y el frontend tenía que adivinar si eso era un
+  // vacío legítimo o un error, mientras su vecina getPositions ya contestaba 404 al mismo input.
   getById = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const vehicle = await req.db.Vehicle.findById(id).populate('tires');
-    res.json(vehicle);
+    await req.vehicle.populate('tires');
+    res.json(req.vehicle);
   });
 
   // Esquema de ejes del vehículo + qué cubierta ocupa cada posición (o null si libre).
@@ -90,6 +96,24 @@ class VehicleController {
     }
   }
 
+  // Marcar el vehículo fuera de servicio, o devolverlo al servicio (t145).
+  //
+  // Es una ANOTACIÓN sobre el vehículo, no una baja: no toca las cubiertas montadas ni saca al
+  // vehículo del inventario. Lo único que cambia es que deja de contar como pendiente en la
+  // lista "PARA HOY" del Inicio, donde antes quedaba clavado todos los días.
+  //
+  // Vive en el vehículo (data plane) y no en el dispositivo a propósito: un acoplado parado lo
+  // está para todos los que abren la app, no solo para quien lo descartó de su pantalla.
+  setService = asyncHandler(async (req, res) => {
+    const { outOfService } = req.body;
+    const vehicle = await req.db.Vehicle.findById(req.params.id);
+    if (!vehicle) return res.status(404).json({ message: 'Vehículo no encontrado' });
+
+    vehicle.outOfService = outOfService;
+    await vehicle.save();
+    res.json(vehicle);
+  });
+
   // Tipos de vehículo custom del tenant (data-plane). Los presets viven en el front; acá
   // solo los que el usuario guarda. Nombre único (validado en código, no por índice).
   listVehicleTypes = asyncHandler(async (req, res) => {
@@ -129,8 +153,9 @@ class VehicleController {
       }
 
       // Patente normalizada (MAYÚSCULAS, sin símbolos): así "ABC-301" == "ABC301" y no se
-      // puede evadir el chequeo de duplicados con un guion.
-      const plate = normalizePlate(licensePlate);
+      // puede evadir el chequeo de duplicados con un guion. El FORMATO se valida contra las
+      // máscaras configuradas por el tenant (t138); sin máscaras configuradas no se valida.
+      const plate = assertValidPlate(licensePlate, await getTenantPlateFormats(req.auth.tenantId));
 
       await assertVehicleUnique(req.db, { mobile, plate });
 
@@ -199,14 +224,15 @@ class VehicleController {
 
       const tiresToRemove = currentTires.filter((tireId) => !tires.includes(tireId));
 
-      try {
-        await req.db.Tire.updateMany(
-          { _id: { $in: tiresToRemove } },
-          { $set: { vehicle: null } }
-        );
-      } catch (error) {
-        console.error("Error al desvincular cubiertas:", error.message);
-      }
+      // t30: este updateMany estaba envuelto en un try/catch que solo hacía console.error y
+      // DEJABA SEGUIR EL FLUJO. Si el desvinculado fallaba, la request terminaba respondiendo
+      // 200: el cliente creía que la operación había salido bien mientras las cubiertas
+      // quedaban apuntando a un vehículo del que ya no forman parte. Un error de escritura
+      // acá no es un detalle a loguear, es el motivo para abortar.
+      await req.db.Tire.updateMany(
+        { _id: { $in: tiresToRemove } },
+        { $set: { vehicle: null } }
+      );
 
       for (const tireId of tiresToRemove) {
         const tire = await req.db.Tire.findById(tireId);
@@ -221,16 +247,20 @@ class VehicleController {
         }
       }
 
-      try {
-        await req.db.Tire.updateMany(
-          { _id: { $in: tires } },
-          { $set: { vehicle: id } }
-        );
-      } catch (error) {
-        console.error("Error al asignar nuevas cubiertas:", error.message);
-      }
+      // t30: mismo caso. Tragar el error acá dejaba cubiertas sin vincular al vehículo con un
+      // 200 de respuesta, que es exactamente el desync que después hay que salir a reparar
+      // con un script.
+      await req.db.Tire.updateMany(
+        { _id: { $in: tires } },
+        { $set: { vehicle: id } }
+      );
 
-      for (const tireId of tires) {
+      // SÓLO las cubiertas que ENTRAN ahora. Registrar una Asignación por cada cubierta del
+      // array re-emitía el movimiento en cada guardado del vehículo, aunque no hubiera cambiado
+      // nada: movimientos fantasma en el historial y stints inflados en los reportes por móvil.
+      const tiresToAdd = tires.filter((tireId) => !currentTires.includes(String(tireId)));
+
+      for (const tireId of tiresToAdd) {
         const tire = await req.db.Tire.findById(tireId);
         if (tire) {
           await addHistoryEntry(req.db.History, tire._id, {
@@ -254,7 +284,13 @@ class VehicleController {
 
     } catch (error) {
       console.error("Error al actualizar el vehículo: ", error.message);
-      res.status(500).json({ message: "Error al actualizar el vehículo", error: error.message });
+      // El `error: error.message` que iba acá filtraba el texto crudo de Mongo al cliente
+      // (E11000 con el nombre de la DB del tenant y el índice), justo lo que el handler
+      // central ya evita en el resto de la app. El detalle queda en el log del servidor.
+      res.status(error.status || 500).json({
+        message: error.status ? error.message : "Error al actualizar el vehículo",
+        ...(error.field ? { field: error.field } : {}),
+      });
     }
   }
 
@@ -268,8 +304,8 @@ class VehicleController {
         return res.status(404).json({ message: "Vehículo no encontrado" });
       }
 
-      // Patente normalizada (MAYÚSCULAS, sin símbolos): "ABC-301" == "ABC301".
-      const plate = normalizePlate(licensePlate);
+      // Patente normalizada + formato validado contra las máscaras del tenant (t138).
+      const plate = assertValidPlate(licensePlate, await getTenantPlateFormats(req.auth.tenantId));
 
       await assertVehicleUnique(req.db, { mobile, plate, excludeId: id });
 
@@ -283,11 +319,12 @@ class VehicleController {
     } catch (error) {
       console.error("Error al actualizar detalles del vehículo:", error.message);
       // Duplicado (httpError con status/field): mensaje amable 400 + field. Cualquier otro
-      // error mantiene el wrapper 500 histórico (no filtra el error crudo de Mongo).
+      // error mantiene el wrapper 500 histórico. El comentario decía que no filtraba el error
+      // crudo de Mongo mientras el código lo mandaba en `error`: ahora es cierto (t30).
       if (error.status) {
         return res.status(error.status).json({ message: error.message, ...(error.field ? { field: error.field } : {}) });
       }
-      res.status(500).json({ message: "Error al actualizar el vehículo", error: error.message });
+      res.status(500).json({ message: "Error al actualizar el vehículo" });
     }
   }
 }

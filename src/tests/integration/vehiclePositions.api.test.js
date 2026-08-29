@@ -40,14 +40,12 @@ describe('Vehículo con ejes + GET /api/vehicles/:id/positions', () => {
     const vehId = vehRes.body._id;
 
     const tireRes = await request(app).post('/api/tires').set(auth).send({
-      code: 500, brand: 'B', pattern: 'P', serialNumber: 'SN500', size: 'S', status: 'Nueva',
-    });
+      code: 500, brand: 'B', pattern: 'P', serialNumber: 'SN500', size: 'S', status: 'Nueva', orderNumber: '2026-000001' });
     expect(tireRes.status).toBe(201);
     const tireId = tireRes.body._id;
 
     const assignRes = await request(app).patch(`/api/tires/${tireId}/assign`).set(auth).send({
-      vehicle: vehId, kmAlta: 12000, position: 'E2-DE',
-    });
+      vehicle: vehId, kmAlta: 12000, position: 'E2-DE', orderNumber: '2026-000001' });
     expect(assignRes.status).toBe(200);
 
     const posRes = await request(app).get(`/api/vehicles/${vehId}/positions`).set(auth);

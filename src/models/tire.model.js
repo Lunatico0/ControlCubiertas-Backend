@@ -20,4 +20,9 @@ export const tireSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Índices explícitos: getAll filtra por status y los reportes buscan las cubiertas montadas
+// por vehículo. `code` ya trae el unique implícito.
+tireSchema.index({ vehicle: 1 });
+tireSchema.index({ status: 1 });
+
 export default mongoose.model('Tire', tireSchema);

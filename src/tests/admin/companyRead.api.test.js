@@ -24,6 +24,7 @@ beforeAll(async () => {
     cuit: '30-12345678-9', phone: '+54 351 555', address: 'Ruta 9 Km 42', receiptFooter: 'Pie del comprobante',
     receiptDesign: { accent: '#2358C5', duplicado: false, logo: 'data:image/png;base64,AAA' },
     plateSeparator: '-', tireCodePrefix: 'TMBC-',
+    autoPrint: false,
   });
 });
 
@@ -51,6 +52,14 @@ describe('GET /api/company — empresa + receiptDesign para impresión', () => {
     expect(res.status).toBe(200);
     expect(res.body.plateSeparator).toBe('-');
     expect(res.body.tireCodePrefix).toBe('TMBC-');
+  });
+
+  // t2/t125: la operativa necesita saber si este tenant imprime automáticamente al ejecutar
+  // una acción. Sin este campo en la respuesta el frontend no puede respetar la preferencia.
+  it('incluye autoPrint (la operativa decide si dispara la impresión automática)', async () => {
+    const res = await request(app).get('/api/company').set(authOperator);
+    expect(res.status).toBe(200);
+    expect(res.body.autoPrint).toBe(false);
   });
 
   it('sin token → 401', async () => {

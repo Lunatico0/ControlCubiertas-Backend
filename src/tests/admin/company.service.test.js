@@ -145,4 +145,21 @@ describe('company.service (config de empresa + estados configurables)', () => {
     // caracteres fuera del set permitido (ej. "*") → rechazo
     await expect(updateCompany(tenant._id, { tireCodePrefix: 'A*B' })).rejects.toThrow(/prefijo/i);
   });
+
+  // t2/t125: la impresión automática al ejecutar una acción pasa a ser OPCIONAL por tenant.
+  // Default true = comportamiento histórico. Un tenant que no quiere papel en cada movimiento
+  // la apaga y reimprime desde el historial cuando lo necesita.
+  it('autoPrint arranca en true (comportamiento histórico) y se puede apagar y volver a prender', async () => {
+    const { Tenant } = getControlModels();
+    const solo = await Tenant.create({ name: 'PrintCo', dbName: 'tenant_printco' });
+
+    expect((await getCompany(solo._id)).autoPrint).toBe(true);
+
+    const apagado = await updateCompany(solo._id, { autoPrint: false });
+    expect(apagado.autoPrint).toBe(false);
+    expect((await getCompany(solo._id)).autoPrint).toBe(false);
+
+    const prendido = await updateCompany(solo._id, { autoPrint: true });
+    expect(prendido.autoPrint).toBe(true);
+  });
 });

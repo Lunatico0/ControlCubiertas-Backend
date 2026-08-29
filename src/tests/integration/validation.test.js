@@ -27,16 +27,14 @@ afterAll(async () => {
 describe('Validación de input con Zod', () => {
   it('POST /api/tires sin brand -> 400 con errors', async () => {
     const res = await request(app).post('/api/tires').set(auth).send({
-      code: 5, pattern: 'P', serialNumber: 'S5', size: 'S', status: 'Nueva',
-    });
+      code: 5, pattern: 'P', serialNumber: 'S5', size: 'S', status: 'Nueva', orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
     expect(res.body.errors).toBeDefined();
   });
 
   it('POST /api/tires con status no configurado en el tenant -> 400', async () => {
     const res = await request(app).post('/api/tires').set(auth).send({
-      code: 6, brand: 'B', pattern: 'P', serialNumber: 'S6', size: 'S', status: 'Inexistente',
-    });
+      code: 6, brand: 'B', pattern: 'P', serialNumber: 'S6', size: 'S', status: 'Inexistente', orderNumber: '2026-000001' });
     expect(res.status).toBe(400);
     // Ya no lo rechaza el enum de Zod, sino la validación dinámica del controller (por tenant)
     expect(res.body.message).toMatch(/no válido/i);
@@ -52,8 +50,7 @@ describe('Validación de input con Zod', () => {
 
   it('POST /api/tires válido sigue creando (201)', async () => {
     const res = await request(app).post('/api/tires').set(auth).send({
-      code: 7, brand: 'B', pattern: 'P', serialNumber: 'S7', size: 'S', status: 'Nueva',
-    });
+      code: 7, brand: 'B', pattern: 'P', serialNumber: 'S7', size: 'S', status: 'Nueva', orderNumber: '2026-000001' });
     expect(res.status).toBe(201);
   });
 });

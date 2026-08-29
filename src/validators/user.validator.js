@@ -51,6 +51,8 @@ export const updateCompanySchema = z.object({
   // claves no declaradas, así que un campo ausente del schema se guarda como 200 pero NO persiste.
   plateSeparator: z.string().optional(),
   tireCodePrefix: z.string().optional(),
+  // Impresión automática al ejecutar una acción. Ver tenant.schema.
+  autoPrint: z.boolean().optional(),
   stockStatuses: z
     .array(z.object({ name: z.string().min(1), role: z.enum(['initial', 'stock', 'recap', 'discard']), color: z.string().optional() }))
     .optional(),
