@@ -11,16 +11,36 @@ import { registerModels } from './registerModels.js';
 
 const cache = new Map(); // dbName -> { conn, models }
 let baseConnection = null;
+let baseUri = null;
+let baseOptions = {};
+// true cuando la conexión INICIAL de la base falló. Mongoose sólo reconecta una conexión que
+// ya abrió alguna vez; una que nunca abrió queda muerta y sus queries bufferean hasta el
+// timeout. getTenantDb la rearma en la request siguiente.
+let baseFallida = false;
 
 export function initBaseConnection(uri, options = {}) {
-  baseConnection = mongoose.createConnection(uri, options);
-  // Serverless: capturar el fallo del cold start. Si Atlas tarda/hipo en el arranque,
-  // el rechazo de la conexión base se logueaba como unhandledRejection (mechanism
-  // auto.node.onunhandledrejection en Sentry) y podía 500 la invocación. Con el .catch
-  // se loguea y listo; mongoose bufferea las queries y reintenta en la próxima request.
-  // Simétrico a como connectControlPlane() ya se maneja con .catch en api/index.js.
-  baseConnection.asPromise().catch((err) => console.error('Error conectando al data plane (base):', err.message));
-  return baseConnection;
+  baseUri = uri;
+  baseOptions = options;
+  baseFallida = false;
+  const conn = mongoose.createConnection(uri, options);
+  baseConnection = conn;
+  // Serverless: capturar el fallo del cold start. Sin el .catch, el rechazo se logueaba como
+  // unhandledRejection en Sentry y podía 500 la invocación. Simétrico a como
+  // connectControlPlane() se maneja con .catch en api/index.js.
+  conn.asPromise().catch((err) => {
+    console.error('Error conectando al data plane (base):', err.message);
+    if (baseConnection === conn) baseFallida = true;
+  });
+  return conn;
+}
+
+// Descarta la conexión base muerta y abre una nueva. Las entradas cacheadas cuelgan de la
+// vieja (useDb comparte su cliente), así que se descartan con ella.
+function rearmarBase() {
+  const muerta = baseConnection;
+  cache.clear();
+  initBaseConnection(baseUri, baseOptions);
+  muerta.close().catch(() => {});
 }
 
 export function getBaseConnection() {
@@ -28,6 +48,7 @@ export function getBaseConnection() {
 }
 
 export function getTenantDb(dbName) {
+  if (baseFallida) rearmarBase();
   const cached = cache.get(dbName);
   if (cached) return cached;
 
@@ -46,6 +67,7 @@ export function getTenantDb(dbName) {
 
 export async function closeAll() {
   cache.clear();
+  baseFallida = false;
   if (baseConnection) {
     await baseConnection.close();
     baseConnection = null;
