@@ -23,10 +23,22 @@ export async function connectControlPlane(uri = process.env.CONTROL_PLANE_URI) {
   if (models) return models;
   if (connectPromise) return connectPromise;
   if (!uri) throw new Error('Falta CONTROL_PLANE_URI para el control plane.');
+  // Si la conexión inicial falla, se descarta todo: Mongoose no reintenta una conexión que
+  // nunca llegó a abrir, y una promesa rechazada cacheada dejaba la instancia serverless
+  // devolviendo el mismo error en cada request hasta que Vercel la reciclara. Limpiando acá,
+  // el middleware de app.js reintenta en la request siguiente.
   connectPromise = (async () => {
-    controlConn = mongoose.createConnection(uri);
-    await controlConn.asPromise();
-    models = registerControlModels(controlConn);
+    const conn = mongoose.createConnection(uri);
+    controlConn = conn;
+    try {
+      await conn.asPromise();
+    } catch (err) {
+      controlConn = null;
+      connectPromise = null;
+      conn.close().catch(() => {});
+      throw err;
+    }
+    models = registerControlModels(conn);
     return models;
   })();
   return connectPromise;
