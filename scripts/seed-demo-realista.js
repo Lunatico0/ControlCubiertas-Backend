@@ -89,7 +89,11 @@ try {
   }
 
   // 1) Provisionar tenant + admin + operarios.
-  const prov = await provisionTenant({ name: TENANT.name, adminEmail: TENANT.adminEmail, password: TENANT.password });
+  // mustChangePassword: false A PROPÓSITO. Este tenant es la PLANTILLA de la demo y su clave es
+  // pública: si el admin quedara obligado, el primer visitante cambiaría la clave compartida (o
+  // la API le respondería 403 PASSWORD_CHANGE_REQUIRED a todos). provisionTenant lo pone en true
+  // por default para los clientes reales.
+  const prov = await provisionTenant({ name: TENANT.name, adminEmail: TENANT.adminEmail, password: TENANT.password, mustChangePassword: false });
   for (const op of OPERATORS) {
     await User.create({
       email: op.email, name: op.name, passwordHash: await hashPassword(op.password),

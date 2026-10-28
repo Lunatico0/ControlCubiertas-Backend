@@ -113,6 +113,27 @@ describe('correlativo de comprobante', () => {
     expect(await numeroActual()).toBe(antes);
   });
 
+  it('una corrección de movimiento SIN cambios no consume número (N2)', async () => {
+    const tireId = await crearCubierta();
+    const v = await crearVehiculo();
+    await request(app).patch(`/api/tires/${tireId}/assign`).set(auth)
+      .send({ vehicle: String(v._id), kmAlta: 1000, orderNumber: '2026-000014' });
+    const asig = await db.History.findOne({ tire: tireId, type: 'Asignación' });
+
+    const antes = await numeroActual();
+    const entradasAntes = await db.History.countDocuments({ tire: tireId });
+
+    // Mismo km: no hay nada que corregir.
+    const res = await request(app).patch(`/api/tires/${tireId}/history/${asig._id}`).set(auth)
+      .send({ form: { kmAlta: 1000, orderNumber: '2026-000015' } });
+    expect(res.status).toBe(400);
+
+    expect(await numeroActual()).toBe(antes);
+    expect(await db.History.countDocuments({ tire: tireId })).toBe(entradasAntes);
+    const original = await db.History.findById(asig._id);
+    expect(original.flag).toBe(false);
+  });
+
   it('un alta rechazada tampoco consume número', async () => {
     const antes = await numeroActual();
     const res = await request(app).post('/api/tires').set(auth).send({

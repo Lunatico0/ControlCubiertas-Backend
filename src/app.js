@@ -139,30 +139,54 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Red de seguridad: dos errores de Mongo que, si se serializan crudos, filtran interna del
+// multi-tenant. El E11000 incluye "collection: <dbName>.<coleccion>", o sea el nombre de la
+// base del tenant. Cada endpoint debería pre-chequear con un mensaje propio; esto cubre el
+// que se olvide.
+//
+// El mensaje lo lee el operario (S15-b): el campo va con su nombre de pantalla, nunca el del
+// schema. Un campo sin etiqueta acá cae en el mensaje genérico en vez de mostrar "keyValue"
+// crudo; `field` sigue viajando para que el front marque el campo.
+const ETIQUETAS_DUPLICADO = {
+  code: 'ese código interno',
+  licensePlate: 'esa patente',
+  mobile: 'ese móvil',
+  email: 'ese email',
+};
+
+const normalizarErrorDeMongo = (err) => {
+  if (err?.code === 11000) {
+    const campo = Object.keys(err.keyValue || {})[0];
+    const valor = campo ? err.keyValue[campo] : undefined;
+    const etiqueta = ETIQUETAS_DUPLICADO[campo];
+    return httpError(
+      etiqueta ? `Ya existe un registro con ${etiqueta}${valor !== undefined ? ` (${valor})` : ''}` : 'Ya existe un registro con esos datos',
+      400,
+      campo,
+    );
+  }
+  if (err?.name === 'CastError') return httpError('Identificador inválido', 400, err.path);
+  return err;
+};
+
+// Qué le llega a Sentry: sólo lo que termina en 5xx. Mismo criterio que el handler central
+// (`err.status || 500`), así lo que Sentry reporta es exactamente lo que el cliente vio como
+// falla del servidor.
+export const debeReportarASentry = (err) => (err?.status || 500) >= 500;
+
+// La normalización va ANTES de Sentry (I2). Al revés, un E11000 o un CastError llegaban sin
+// `status`, Sentry los tomaba como 500 no manejado (handled:no) y disparaba una alerta por un
+// error que el cliente recibía como 400.
+app.use((err, req, res, next) => next(normalizarErrorDeMongo(err)));
+
 // Sentry captura las excepciones (5xx / no manejadas) ANTES del handler central. No-op si
 // Sentry no esta activo (sin DSN o en tests). Va despues de las rutas, antes del error mw.
-if (sentryEnabled) Sentry.setupExpressErrorHandler(app);
+if (sentryEnabled) Sentry.setupExpressErrorHandler(app, { shouldHandleError: debeReportarASentry });
 
 // Middleware de manejo de errores central: los handlers (vía asyncHandler) y los services
 // tiran httpError(message, status, field); acá se serializa. Solo se loguea el 5xx (una falla
 // real del server); un 4xx es input inválido esperado, no ruido de consola.
 app.use((err, req, res, next) => {
-  // Red de seguridad: dos errores de Mongo que, si se serializan crudos, filtran interna del
-  // multi-tenant. El E11000 incluye "collection: <dbName>.<coleccion>", o sea el nombre de la
-  // base del tenant. Cada endpoint debería pre-chequear con un mensaje propio; esto cubre el
-  // que se olvide.
-  if (err?.code === 11000) {
-    const campo = Object.keys(err.keyValue || {})[0];
-    const valor = campo ? err.keyValue[campo] : undefined;
-    err = httpError(
-      campo ? `Ya existe un registro con ese valor de "${campo}"${valor !== undefined ? ` (${valor})` : ''}` : 'Ya existe un registro con esos datos',
-      400,
-      campo,
-    );
-  } else if (err?.name === 'CastError') {
-    err = httpError('Identificador inválido', 400, err.path);
-  }
-
   const status = err.status || 500;
   if (status >= 500) console.error(err);
 

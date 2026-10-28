@@ -309,10 +309,15 @@ class VehicleController {
 
       await assertVehicleUnique(req.db, { mobile, plate, excludeId: id });
 
+      // S1: los opcionales se asignan SOLO si vienen en el body (mismo criterio que
+      // updateAxles). El drawer de edición no manda `type`, porque el tipo se define junto
+      // con los ejes: asignarlo sin guard lo dejaba en undefined y cada edición de datos le
+      // borraba el tipo al vehículo. `type: null` explícito sí lo limpia. `brand` no admite
+      // null ni vacío (el validator lo rechaza con 400): es requerido en el modelo.
       vehicle.mobile = mobile;
       vehicle.licensePlate = plate;
-      vehicle.brand = brand;
-      vehicle.type = type;
+      if (brand !== undefined) vehicle.brand = brand;
+      if (type !== undefined) vehicle.type = type;
 
       const updated = await vehicle.save();
       res.json(updated);

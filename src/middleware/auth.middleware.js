@@ -1,7 +1,7 @@
 import { verifyAccessToken } from '../services/auth.service.js';
 import { getControlModels } from '../db/controlPlane.js';
 
-// Verifica el Bearer token y deja req.auth = { userId, tenantId, dbName, role }.
+// Verifica el Bearer token y deja req.auth = { userId, tenantId, dbName, role, name, mcp? }.
 // En fase 03, attachDb usará req.auth.dbName para resolver la conexión del tenant.
 export function authenticate(req, res, next) {
   const header = req.headers.authorization || '';
@@ -39,6 +39,16 @@ export async function requireActiveTenant(req, res, next) {
     // que expiren. Contrastarlo acá cuesta cero: es la misma query que ya se hizo.
     if (req.auth.dbName && tenant.dbName && req.auth.dbName !== tenant.dbName) {
       return res.status(403).json({ message: 'Tu sesión ya no es válida. Volvé a iniciar sesión.', code: 'TENANT_INACTIVE' });
+    }
+    // Clave temporal sin cambiar (claim `mcp`, ver buildClaims). Va DESPUÉS de los chequeos
+    // del tenant: una empresa caída cierra la sesión, y eso pesa más que el cambio pendiente.
+    // /api/auth/change-password no pasa por acá, así que el cambio sigue disponible. El
+    // `message` se explica solo para los desktop viejos que no conocen el code.
+    if (req.auth.mcp) {
+      return res.status(403).json({
+        message: 'Tenés que cambiar tu contraseña temporal antes de seguir. Volvé a iniciar sesión para cambiarla.',
+        code: 'PASSWORD_CHANGE_REQUIRED',
+      });
     }
     next();
   } catch (err) {

@@ -64,7 +64,17 @@ export const recalculateTireState = (history) => {
   };
 };
 
+// Id de una ref que puede venir populada (documento con _id) o cruda (ObjectId / string).
+export const idOf = (ref) => (ref ? String(ref._id ?? ref) : null);
+
 export const updateTireFromState = (tireDoc, state) => {
+  // Un código de posición (E1-D, E2-DE, ...) solo significa algo en el vehículo donde se tomó.
+  // Si la cubierta queda sin vehículo, o pasa a OTRO, la posición vieja se limpia: si no,
+  // queda "E1-D" en depósito (S7) o la posición del camión viejo sobre el nuevo (N6). Quien
+  // restaura una posición válida (deshacer una desasignación) la setea después de esto.
+  if (!state.currentVehicle || idOf(state.currentVehicle) !== idOf(tireDoc.vehicle)) {
+    tireDoc.position = null;
+  }
   tireDoc.vehicle = state.currentVehicle;
   tireDoc.status = state.currentStatus;
   tireDoc.kilometers = state.totalKilometers;

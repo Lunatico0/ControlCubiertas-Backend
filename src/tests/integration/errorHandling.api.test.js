@@ -6,13 +6,17 @@
 //      base de datos del tenant, que es justo lo que el aislamiento no debe exponer.
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import request from 'supertest';
-import app from '../../app.js';
+import { jest } from '@jest/globals';
+import app, { debeReportarASentry } from '../../app.js';
 import { connectControlPlane, getControlModels, closeControlPlane } from '../../db/controlPlane.js';
-import { initBaseConnection, closeAll } from '../../db/tenantConnections.js';
+import { initBaseConnection, closeAll, getTenantDb } from '../../db/tenantConnections.js';
+import { registerModels } from '../../db/registerModels.js';
+import { httpError } from '../../utils/httpError.js';
 import { createTenantAndToken } from '../helpers/tenantAuth.js';
 
 let mongod;
 let auth;
+let db;
 const DB_NAME = 'tenant_errores_api';
 
 beforeAll(async () => {
@@ -23,7 +27,10 @@ beforeAll(async () => {
   initBaseConnection(uri);
   await getControlModels().User.init();
   ({ auth } = await createTenantAndToken({ name: 'Errores SA', dbName: DB_NAME }));
+  db = registerModels(getTenantDb(DB_NAME));
 });
+
+afterEach(() => jest.restoreAllMocks());
 
 afterAll(async () => {
   await closeControlPlane();
@@ -88,5 +95,77 @@ describe('Un body inválido da 400, no 500', () => {
     const res = await request(app).patch(`/api/tires/${id}/correct`).set(auth).send({ orderNumber: '2026-000019' });
     expect(res.status).toBe(400);
     expect(cuerpo(res)).not.toMatch(/Cannot destructure|TypeError/i);
+  });
+});
+
+// S15-b. La red de seguridad del E11000 (la que cubre al endpoint que se olvidó el pre-check)
+// armaba 'Ya existe un registro con ese valor de "code" (1)': el nombre interno del campo, en
+// inglés y entre comillas, llegaba tal cual al toast del operario.
+//
+// Los endpoints de alta tienen su pre-check y su try/catch propio, así que para llegar a la
+// red se usa un E11000 REAL del driver (dos inserts crudos contra el índice único) y se lo hace
+// salir de una ruta que delega en el handler central (GET /api/vehicles, vía asyncHandler).
+const e11000Real = async (Model, primero, segundo = primero) => {
+  await Model.init();
+  await Model.collection.insertOne({ ...primero });
+  try {
+    await Model.collection.insertOne({ ...segundo });
+  } catch (err) {
+    return err;
+  }
+  throw new Error('se esperaba un E11000');
+};
+
+const fallarListadoDeVehiculos = (err) =>
+  jest.spyOn(db.Vehicle, 'find').mockImplementation(() => ({ populate: () => Promise.reject(err) }));
+
+describe('El E11000 que se escapa del pre-check se lee en castellano', () => {
+  it.each([
+    ['code', 'ese código interno', 7201],
+    ['licensePlate', 'esa patente', 'AB201CD'],
+    ['mobile', 'ese móvil', 'M-201'],
+  ])('campo %s', async (campo, etiqueta, valor) => {
+    // En vehículos el segundo insert repite SÓLO el campo bajo prueba: con los dos repetidos,
+    // Mongo reporta el primer índice que choca y no el que se quiere ver.
+    const vehiculo = (n) => ({ mobile: `M-${campo}-${n}`, licensePlate: `P-${campo}-${n}`, [campo]: valor });
+    const err = campo === 'code'
+      ? await e11000Real(db.Tire, { code: valor })
+      : await e11000Real(db.Vehicle, vehiculo(1), vehiculo(2));
+    expect(err.code).toBe(11000);
+    expect(Object.keys(err.keyValue)).toEqual([campo]);
+
+    fallarListadoDeVehiculos(err);
+    const res = await request(app).get('/api/vehicles').set(auth);
+
+    expect(res.status).toBe(400);
+    expect(res.body.field).toBe(campo);
+    expect(res.body.message).toBe(`Ya existe un registro con ${etiqueta} (${valor})`);
+    expect(cuerpo(res)).not.toMatch(/E11000|duplicate key|tenant_/i);
+  });
+
+  it('un campo sin etiqueta conocida no expone su nombre interno', async () => {
+    const err = Object.assign(new Error('E11000 duplicate key error collection: tenant_x.cosas'), { code: 11000, keyValue: { internalRef: 'X1' } });
+    fallarListadoDeVehiculos(err);
+
+    const res = await request(app).get('/api/vehicles').set(auth);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe('Ya existe un registro con esos datos');
+    expect(cuerpo(res)).not.toMatch(/E11000|tenant_/i);
+  });
+});
+
+// I2. Sentry decide qué reportar con este filtro, y sólo tiene sentido si lo que recibe ya
+// está normalizado: un E11000 crudo no trae `status` y se tomaría como 500. El recorrido
+// completo (normalización ANTES del handler de Sentry) se prueba en sentryActivacion.test.js.
+describe('El filtro de Sentry sólo deja pasar fallas del servidor', () => {
+  it('un 4xx de negocio no se reporta', () => {
+    expect(debeReportarASentry(httpError('Ya existe un registro con ese código interno (1)', 400, 'code'))).toBe(false);
+    expect(debeReportarASentry(httpError('Cubierta no encontrada', 404))).toBe(false);
+  });
+
+  it('un error sin status (inesperado) y un 5xx sí se reportan', () => {
+    expect(debeReportarASentry(new Error('boom'))).toBe(true);
+    expect(debeReportarASentry(httpError('Servicio caído', 503))).toBe(true);
   });
 });

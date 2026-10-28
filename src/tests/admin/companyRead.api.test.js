@@ -24,6 +24,7 @@ beforeAll(async () => {
     cuit: '30-12345678-9', phone: '+54 351 555', address: 'Ruta 9 Km 42', receiptFooter: 'Pie del comprobante',
     receiptDesign: { accent: '#2358C5', duplicado: false, logo: 'data:image/png;base64,AAA' },
     plateSeparator: '-', tireCodePrefix: 'TMBC-',
+    plateFormats: ['AA000AA'],
     autoPrint: false,
   });
 });
@@ -60,6 +61,35 @@ describe('GET /api/company — empresa + receiptDesign para impresión', () => {
     const res = await request(app).get('/api/company').set(authOperator);
     expect(res.status).toBe(200);
     expect(res.body.autoPrint).toBe(false);
+  });
+
+  // A1 (auditoría 26/10): sin este campo la operativa nunca recibía los formatos y su
+  // validación de patente quedaba apagada siempre (apiContext caía a la lista vacía).
+  it('incluye plateFormats (la operativa valida la patente antes de mandarla)', async () => {
+    const res = await request(app).get('/api/company').set(authOperator);
+    expect(res.status).toBe(200);
+    expect(res.body.plateFormats).toEqual(['AA000AA']);
+  });
+
+  // Un tenant viejo al que nunca se le escribió el campo cae al default argentino, igual que
+  // la validación del backend (getTenantPlateFormats). Hoy lo resuelve el default del schema
+  // de Mongoose al hidratar; este test es la red si alguien cambia eso.
+  it('tenant sin plateFormats guardado: devuelve el default argentino', async () => {
+    const { auth } = await createTenantAndToken({ name: 'Viejo', dbName: 'tenant_companyread_viejo', role: 'operator' });
+    await getControlModels().Tenant.collection.updateOne({ name: 'Viejo' }, { $unset: { plateFormats: '' } });
+
+    const res = await request(app).get('/api/company').set(auth);
+    expect(res.status).toBe(200);
+    expect(res.body.plateFormats).toEqual(['AAA000', 'AA000AA', 'A000AAA', '000AAA']);
+  });
+
+  // A10: la operativa no necesita ni debe ver datos internos del multi-tenant.
+  it('no devuelve dbName ni las marcas de demo', async () => {
+    const res = await request(app).get('/api/company').set(authOperator);
+    expect(res.status).toBe(200);
+    for (const k of ['dbName', 'isDemoTemplate', 'demoOf', 'demoExpiresAt']) {
+      expect(res.body).not.toHaveProperty(k);
+    }
   });
 
   it('sin token → 401', async () => {
