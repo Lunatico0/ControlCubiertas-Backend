@@ -1,14 +1,15 @@
 import { config } from "dotenv"
 import * as Sentry from "@sentry/node"
+import { sentryHabilitado } from "./utils/sentryEnabled.js"
 
 // Se importa PRIMERO (antes que express) desde app.js. dotenv aca porque el config() de app.js
 // todavia no corrio en ese punto → sin esto, SENTRY_DSN leido del .env no estaria seteado.
 config()
 
-// Sentry solo si hay DSN y NO estamos en tests (jest setea NODE_ENV=test): asi los tests nunca
-// mandan errores a Sentry ni gastan cuota, y en dev sin DSN tampoco manda nada. En prod (Vercel)
-// SENTRY_DSN llega como env var real y se activa.
-export const sentryEnabled = Boolean(process.env.SENTRY_DSN && process.env.NODE_ENV !== "test")
+// Sentry solo con DSN y en produccion (NODE_ENV o VERCEL_ENV), o con SENTRY_DEV=true para
+// depurarlo en local. Nunca en tests (jest setea NODE_ENV=test). El criterio vive en
+// utils/sentryEnabled.js.
+export const sentryEnabled = sentryHabilitado(process.env)
 
 if (sentryEnabled) {
   Sentry.init({
