@@ -36,10 +36,13 @@ const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, 'Identificador inválido'
 // PUT /vehicles/details/:id — datos identificatorios del móvil. `mobile` y `licensePlate`
 // son los que se validan por unicidad, así que van obligatorios y sin espacios al borde;
 // sin schema, un body sin `mobile` reventaba en normalizePlate y salía como 500.
+// `brand` y `type` son opcionales: si no vienen, el controller conserva lo guardado (S1).
+// `brand` no acepta null ni vacío porque es requerido en el modelo: antes eso salía 500 al
+// guardar, ahora es un 400 con `field`. `type: null` sí vale: limpia el tipo a propósito.
 export const updateVehicleDetailsSchema = z.object({
   mobile: z.string().trim().min(1, 'El número de móvil es obligatorio'),
   licensePlate: z.string().trim().min(1, 'La patente es obligatoria'),
-  brand: z.string().nullish(),
+  brand: z.string({ error: 'La marca no puede quedar vacía' }).trim().min(1, 'La marca no puede quedar vacía').optional(),
   type: z.string().nullish(),
 });
 
