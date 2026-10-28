@@ -39,12 +39,20 @@ export const bumpTokenVersion = (user) => {
 };
 
 // Claims firmados en el access token: tenantId + dbName + role, así el middleware resuelve
-// el tenant sin tocar el control plane en cada request. Compartido por login y refresh.
+// el tenant sin tocar el control plane en cada request. Compartido por login, refresh y
+// cambio de contraseña.
+//  - `name`: autor de los movimientos (utils/actor.js). Sin nombre cargado cae al email, que
+//    siempre existe. Un cambio de nombre se ve al próximo refresh.
+//  - `mcp`: el usuario tiene que cambiar la contraseña antes de operar. requireActiveTenant
+//    lo rechaza con 403 PASSWORD_CHANGE_REQUIRED. Solo viaja cuando es true: ausente = no
+//    exigido, que es lo que traen los tokens emitidos antes de este claim.
 const buildClaims = (user, tenant) => ({
   userId: user._id.toString(),
   tenantId: tenant._id.toString(),
   dbName: tenant.dbName,
   role: user.role,
+  name: user.name?.trim() || user.email,
+  ...(user.mustChangePassword ? { mcp: true } : {}),
 });
 
 // Tenant contra el que se firma la sesión.
@@ -131,6 +139,12 @@ export async function changePassword({ User, Tenant }, userId, currentPassword, 
     if (!currentPassword) throw httpError('Ingresá tu contraseña actual', 400);
     const ok = await verifyPassword(currentPassword, user.passwordHash);
     if (!ok) throw httpError('La contraseña actual es incorrecta', 400);
+  }
+
+  // Repetir la clave vigente no es cambiarla: en el primer ingreso dejaría la temporal (que
+  // conoce quien la entregó) como definitiva y bajaría el flag igual.
+  if (await verifyPassword(newPassword, user.passwordHash)) {
+    throw httpError('La nueva contraseña tiene que ser distinta de la actual', 400);
   }
 
   user.passwordHash = await hashPassword(newPassword);

@@ -2,7 +2,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import { connectControlPlane, getControlModels, closeControlPlane } from '../../db/controlPlane.js';
 import { initBaseConnection, getTenantDb, closeAll } from '../../db/tenantConnections.js';
 import { provisionTenant } from '../../services/provision.service.js';
-import { login } from '../../services/auth.service.js';
+import { login, verifyAccessToken } from '../../services/auth.service.js';
 
 describe('provisionTenant', () => {
   let mongod;
@@ -42,6 +42,35 @@ describe('provisionTenant', () => {
     // la DB del tenant quedó sembrada con el contador de recibos
     const { models } = getTenantDb(r.dbName);
     expect(await models.ReceiptCounter.countDocuments()).toBe(1);
+  });
+
+  // A3 (auditoría 26/10): el admin aprovisionado entraba con la temporal y nunca se le pedía
+  // cambiarla. Ahora nace obligado, y el token del login lo refleja (claim mcp).
+  it('el admin aprovisionado nace obligado a cambiar la contraseña', async () => {
+    const r = await provisionTenant({ name: 'Cliente Dos', adminEmail: 'admin@dos.com', password: 'temp456' });
+    expect(r.user.mustChangePassword).toBe(true);
+
+    const loginRes = await login(getControlModels(), 'admin@dos.com', 'temp456');
+    expect(loginRes.user.mustChangePassword).toBe(true);
+    expect(verifyAccessToken(loginRes.accessToken).mcp).toBe(true);
+  });
+
+  // La PLANTILLA de la demo (seed-demo-realista.js) tiene la clave publicada: si quedara
+  // obligada, el primer visitante cambiaría la clave compartida.
+  it('mustChangePassword:false lo apaga (plantilla de la demo)', async () => {
+    const r = await provisionTenant({ name: 'Demo Plantilla', adminEmail: 'admin@demo.com', password: 'publica1', mustChangePassword: false });
+    expect(r.user.mustChangePassword).toBe(false);
+  });
+
+  // A13-h: el admin del alta quedaba sin nombre.
+  it('adminName queda como nombre del admin (recortado)', async () => {
+    const r = await provisionTenant({ name: 'Cliente Tres', adminEmail: 'admin@tres.com', password: 'x', adminName: '  Ana Admin ' });
+    expect(r.user.name).toBe('Ana Admin');
+  });
+
+  it('sin adminName el admin queda sin nombre, como antes', async () => {
+    const r = await provisionTenant({ name: 'Cliente Cuatro', adminEmail: 'admin@cuatro.com', password: 'x' });
+    expect(r.user.name).toBeUndefined();
   });
 
   it('rechaza un tenant o email duplicado', async () => {
