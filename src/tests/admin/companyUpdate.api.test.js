@@ -47,4 +47,58 @@ describe('PATCH /api/admin/company — persiste preferencias de display (flujo H
     const res = await request(app).patch('/api/admin/company').set(authAdmin).send({ tireCodePrefix: 'DEMASIADOLARGO' });
     expect(res.status).toBe(400);
   });
+
+  // A1 (auditoría 26/10): plateFormats faltaba en updateCompanySchema. Zod lo strippeaba, el
+  // PATCH respondía 200 con los 4 formatos de siempre y la pantalla decía "actualizados".
+  it('persiste plateFormats: con 2 formatos marcados guarda 2', async () => {
+    const patch = await request(app).patch('/api/admin/company').set(authAdmin).send({ plateFormats: ['AA000AA', 'AAA000'] });
+    expect(patch.status).toBe(200);
+    expect(patch.body.plateFormats).toEqual(['AA000AA', 'AAA000']);
+
+    const read = await request(app).get('/api/admin/company').set(authAdmin);
+    expect(read.body.plateFormats).toEqual(['AA000AA', 'AAA000']);
+  });
+
+  it('persiste la lista vacía de plateFormats (la salida explícita para no validar)', async () => {
+    const patch = await request(app).patch('/api/admin/company').set(authAdmin).send({ plateFormats: [] });
+    expect(patch.status).toBe(200);
+    expect(patch.body.plateFormats).toEqual([]);
+
+    const read = await request(app).get('/api/admin/company').set(authAdmin);
+    expect(read.body.plateFormats).toEqual([]);
+  });
+
+  it('la operativa (GET /api/company) recibe los formatos guardados', async () => {
+    await request(app).patch('/api/admin/company').set(authAdmin).send({ plateFormats: ['AA000AA'] });
+
+    const res = await request(app).get('/api/company').set(authAdmin);
+    expect(res.status).toBe(200);
+    expect(res.body.plateFormats).toEqual(['AA000AA']);
+  });
+
+  // A10 (auditoría 26/10): el panel no necesita ni debe ver datos internos del multi-tenant.
+  // Las marcas de demo tienen default (false/null), así que existen en todo tenant.
+  it('GET y PATCH no devuelven dbName ni las marcas de demo', async () => {
+    const internos = ['dbName', 'isDemoTemplate', 'demoOf', 'demoExpiresAt'];
+
+    const read = await request(app).get('/api/admin/company').set(authAdmin);
+    expect(read.status).toBe(200);
+    const patch = await request(app).patch('/api/admin/company').set(authAdmin).send({ name: 'Acme' });
+    expect(patch.status).toBe(200);
+
+    for (const k of internos) {
+      expect(read.body).not.toHaveProperty(k);
+      expect(patch.body).not.toHaveProperty(k);
+    }
+    expect(read.body.name).toBe('Acme');
+  });
+
+  // Sin plateFormats en el body (cliente desktop viejo, o el editor de comprobante que manda
+  // solo sus campos) la config guardada no se toca.
+  it('un PATCH sin plateFormats no pisa los formatos guardados', async () => {
+    await request(app).patch('/api/admin/company').set(authAdmin).send({ plateFormats: ['AAA000'] });
+    const patch = await request(app).patch('/api/admin/company').set(authAdmin).send({ name: 'Acme SA' });
+    expect(patch.status).toBe(200);
+    expect(patch.body.plateFormats).toEqual(['AAA000']);
+  });
 });

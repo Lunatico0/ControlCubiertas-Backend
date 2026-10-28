@@ -17,11 +17,17 @@ const PLATE_SEP_OK = /^[-_.\/·: ]$/;
 // cuele texto raro que rompa el layout del comprobante o el ancho de las grillas.
 const TIRE_PREFIX_OK = /^[A-Za-z0-9\-_.\/ ]{0,10}$/;
 
+// Campos internos del tenant que no salen por la API (auditoría 26/10, A10): el nombre de la
+// base es un dato del multi-tenant y las marcas de demo son de la purga y del login. Nadie del
+// panel los lee; quien los necesite los toma del modelo, no de esta respuesta.
+const INTERNAL = ['dbName', 'isDemoTemplate', 'demoOf', 'demoExpiresAt'];
+
 // Devuelve el tenant como objeto plano con stockStatuses siempre en la forma [{name,role}]
-// (normaliza legacy [String] en lectura, sin tocar la DB).
+// (normaliza legacy [String] en lectura, sin tocar la DB) y sin los campos internos.
 function serialize(tenant) {
-  const obj = tenant.toObject ? tenant.toObject() : tenant;
+  const obj = tenant.toObject ? tenant.toObject() : { ...tenant };
   obj.stockStatuses = normalizeStatuses(obj.stockStatuses);
+  for (const key of INTERNAL) delete obj[key];
   return obj;
 }
 

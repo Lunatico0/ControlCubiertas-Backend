@@ -19,6 +19,9 @@ router.get('/', async (req, res) => {
       receiptDesign: c.receiptDesign,
       stockStatuses: c.stockStatuses,
       plateSeparator: c.plateSeparator,
+      // La operativa valida la patente con estos formatos antes de mandarla (apiContext).
+      // Sin el campo caía a la lista vacía y la validación del front quedaba apagada siempre.
+      plateFormats: c.plateFormats,
       tireCodePrefix: c.tireCodePrefix,
       autoPrint: c.autoPrint,
     });

@@ -24,7 +24,8 @@ describe('company.service (config de empresa + estados configurables)', () => {
   it('getCompany devuelve la empresa con stockStatuses normalizado ({name,role})', async () => {
     const c = await getCompany(tenant._id);
     expect(c.name).toBe('Acme');
-    expect(c.dbName).toBe('tenant_acme_co');
+    // dbName es interno del multi-tenant: no sale por la API (auditoría 26/10, A10).
+    expect(c).not.toHaveProperty('dbName');
     // Default del schema: forma [{name,role}] con initial + discard obligatorios
     expect(Array.isArray(c.stockStatuses)).toBe(true);
     expect(c.stockStatuses.every((s) => typeof s.name === 'string' && typeof s.role === 'string')).toBe(true);
@@ -121,9 +122,12 @@ describe('company.service (config de empresa + estados configurables)', () => {
 
   it('updateCompany NO permite cambiar dbName ni status (campos del sistema)', async () => {
     const c = await updateCompany(tenant._id, { dbName: 'hackeado', status: 'suspended', name: 'Solo nombre' });
-    expect(c.dbName).toBe('tenant_acme_co');
     expect(c.status).toBe('active');
     expect(c.name).toBe('Solo nombre');
+    // La respuesta ya no trae dbName (A10): la prueba de que no cambió se lee de la base.
+    const enDb = await getControlModels().Tenant.findById(tenant._id).lean();
+    expect(enDb.dbName).toBe('tenant_acme_co');
+    expect(enDb.status).toBe('active');
   });
 
   it('updateCompany persiste plateSeparator válido y RECHAZA uno inválido', async () => {

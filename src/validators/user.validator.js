@@ -51,6 +51,10 @@ export const updateCompanySchema = z.object({
   // claves no declaradas, así que un campo ausente del schema se guarda como 200 pero NO persiste.
   plateSeparator: z.string().optional(),
   tireCodePrefix: z.string().optional(),
+  // Formatos aceptados de patente (máscaras A/0). Faltaba acá y el PATCH respondía 200 con los
+  // formatos de siempre (auditoría 26/10, A1). La normalización y el 400 por máscara inválida
+  // los hace company.service; la lista vacía es válida (apaga la validación).
+  plateFormats: z.array(z.string()).optional(),
   // Impresión automática al ejecutar una acción. Ver tenant.schema.
   autoPrint: z.boolean().optional(),
   stockStatuses: z
