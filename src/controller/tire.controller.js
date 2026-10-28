@@ -15,9 +15,12 @@ async function invalidStatus(tenantId, status) {
 // Pre-check de código duplicado, mismo criterio que assertVehicleUnique en vehículos: mensaje
 // amable en vez de dejar explotar el índice único, que filtraría el E11000 crudo de Mongo con
 // el nombre de la DB del tenant adentro. `field` le dice al front qué campo marcar en rojo.
-async function assertTireCodeUnique(db, code) {
+// `excludeId` es para la corrección de datos: el código propio de la cubierta no cuenta como
+// duplicado (el formulario manda el código aunque no se haya tocado).
+async function assertTireCodeUnique(db, code, excludeId) {
   if (code === undefined || code === null) return;
-  if (await db.Tire.findOne({ code })) {
+  const filtro = excludeId ? { code, _id: { $ne: excludeId } } : { code };
+  if (await db.Tire.findOne(filtro)) {
     throw httpError(`Ya existe una cubierta con el código ${code}`, 400, 'code');
   }
 }
@@ -64,7 +67,9 @@ class TireController {
     const bad = await invalidStatus(req.auth.tenantId, status);
     if (bad) return res.status(400).json({ message: bad });
 
-    const result = await TireService.updateTireStatus(req.db, id, status, orderNumber, receiptNumber);
+    // Los estados viajan al servicio: el guard de cubierta montada (S4) razona por ROL.
+    const statuses = await getTenantStatuses(req.auth.tenantId);
+    const result = await TireService.updateTireStatus(req.db, id, status, orderNumber, receiptNumber, statuses);
     res.status(200).json({
       message: `Estado actualizado de "${result.previousStatus}" a "${status}".`,
       tire: result.tire,
@@ -109,6 +114,10 @@ class TireController {
 
   correctData = asyncHandler(async (req, res) => {
     const { id } = req.params;
+    // S3: el código duplicado se rechaza ACÁ, antes de que el servicio reserve un número de
+    // comprobante o escriba la entrada de corrección. Antes el 400 llegaba del índice único,
+    // con el número ya quemado y una "Corrección-Alta" fantasma en el historial.
+    await assertTireCodeUnique(req.db, req.body?.form?.code, id);
     const result = await TireService.correctData(req.db, id, req.body);
     res.status(200).json({ message: 'Corrección registrada con éxito.', ...result });
   });

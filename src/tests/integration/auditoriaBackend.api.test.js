@@ -87,7 +87,7 @@ describe('undoHistoryEntry: el switch usa el tipo original (t21)', () => {
     db = getTenantDb(dbName).models;
   });
 
-  it('deshacer una Asignación desasigna la cubierta y marca el original como Corrección-Asignación', async () => {
+  it('deshacer una Asignación desasigna la cubierta y marca el original como corregido sin cambiarle el tipo', async () => {
     const veh = await db.Vehicle.create({ brand: 'Scania', mobile: 'M91', licensePlate: 'AA111AA', tires: [] });
     const tire = await db.Tire.create({
       status: '0 km', code: 9101, brand: 'B', pattern: 'P', size: 'S', serialNumber: 'SN9101',
@@ -111,7 +111,8 @@ describe('undoHistoryEntry: el switch usa el tipo original (t21)', () => {
 
     expect(after.vehicle).toBeFalsy();
     const original = await db.History.findById(asig._id);
-    expect(original.type).toBe('Corrección-Asignación');
+    expect(original.type).toBe('Asignación');
+    expect(original.flag).toBe(true);
     const generado = await db.History.findOne({ corrects: asig._id });
     expect(generado.type).toBe('Desasignación');
   });
@@ -140,7 +141,8 @@ describe('undoHistoryEntry: el switch usa el tipo original (t21)', () => {
 
     expect(String(after.vehicle?._id || after.vehicle)).toBe(String(veh._id));
     const original = await db.History.findById(desas._id);
-    expect(original.type).toBe('Corrección-Desasignación');
+    expect(original.type).toBe('Desasignación');
+    expect(original.flag).toBe(true);
   });
 });
 

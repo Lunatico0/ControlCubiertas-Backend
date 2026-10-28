@@ -1,5 +1,5 @@
-import { toCorrectionType, recalculateTireState, updateTireFromState, addHistoryEntry } from '../utils/utils.js';
-import { nameByRole } from '../utils/statuses.js';
+import { toCorrectionType, recalculateTireState, updateTireFromState, addHistoryEntry, idOf } from '../utils/utils.js';
+import { nameByRole, roleOf } from '../utils/statuses.js';
 import { reconcileTireVehicleLinks } from '../utils/vehicleTires.js';
 import { generatePositions } from '../utils/axles.js';
 import { httpError } from '../utils/httpError.js';
@@ -228,9 +228,18 @@ class TireService {
     };
   }
 
-  async updateTireStatus(db, tireId, status, orderNumber, receiptNumber) {
+  async updateTireStatus(db, tireId, status, orderNumber, receiptNumber, statuses = []) {
     const tire = await this.getDocById(db, tireId);
     const previousStatus = tire.status;
+
+    // S4: una cubierta montada no puede irse a recapar ni darse de baja: quedaría ocupando una
+    // posición del camión sin estar ahí. Por ROL del tenant, nunca por nombre de estado.
+    // Va ANTES de reservar el número, para que el rechazo no queme un comprobante.
+    const rolDestino = roleOf(statuses, status);
+    if (tire.vehicle && (rolDestino === 'recap' || rolDestino === 'discard')) {
+      const para = rolDestino === 'recap' ? 'enviarla a recapar' : 'darla de baja';
+      throw httpError(`La cubierta está montada en un vehículo. Desmontala primero para ${para}.`, 409, 'status');
+    }
 
     tire.status = status;
 
@@ -289,6 +298,11 @@ class TireService {
 
     const parsedDate = date && !isNaN(new Date(date)) ? new Date(date) : new Date();
 
+    // S3: la cubierta se guarda ANTES de reservar el número y de escribir la entrada. Si el
+    // guardado rebota (índice único de `code`, una carrera que el pre-check del controller no
+    // ve), no queda número quemado ni una corrección que nunca ocurrió.
+    await tire.save();
+
     // Después del guard de "no se detectaron cambios": una corrección vacía no gasta número.
     const numero = await reservarNumeroComprobante(db, data.form.receiptNumber);
 
@@ -305,7 +319,6 @@ class TireService {
       receiptNumber: numero
     });
 
-    await tire.save();
     await tire.populate('vehicle');
 
     return {
@@ -328,7 +341,6 @@ class TireService {
     const history = await db.History.find({ tire: tire._id }).sort({ date: 1 });
     const originalOrder = original.orderNumber;
     const correctionOrder = updates.form.orderNumber;
-    const receiptNumber = await reservarNumeroComprobante(db, updates.form.receiptNumber);
 
     const reasonOriginal = `Corregido en la orden N°${correctionOrder}`;
     const reasonCorrection = `Corrección de Orden N°${originalOrder}`;
@@ -343,10 +355,14 @@ class TireService {
     const editedFields = [];
     const fieldChanges = {};
 
+    // S6: `original.vehicle` viene POPULADO. Compararlo con toString() contra el id del form
+    // daba siempre "cambió" (el toString de un documento no es su id). Se compara por id.
+    const valorOriginal = (field) => (field === 'vehicle' ? idOf(original.vehicle) : original[field]);
+
     ['kmAlta', 'kmBaja', 'status', 'vehicle'].forEach(field => {
       if (Object.hasOwn(updates.form, field)) {
         const newVal = updates.form[field];
-        const oldVal = original[field];
+        const oldVal = valorOriginal(field);
 
         if (compareValues(oldVal, newVal)) {
           editedFields.push(field);
@@ -362,28 +378,31 @@ class TireService {
       throw httpError('No se detectaron cambios para corregir.', 400);
     }
 
-    // Igual que en undoHistoryEntry: el tipo se captura antes de mutarlo, porque más abajo
-    // la entrada NUEVA se deriva del tipo que la original TENÍA.
-    const originalType = original.type;
+    // N2: el número se reserva recién acá, pasado el guard de "sin cambios". Antes se pedía
+    // arriba de todo y una corrección vacía quemaba un comprobante.
+    const receiptNumber = await reservarNumeroComprobante(db, updates.form.receiptNumber);
 
-    // Marcar original como corregida
+    const originalType = original.type;
+    const vehiculoEditado = editedFields.includes('vehicle');
+
+    // S6: la original CONSERVA su tipo. Solo se marca (flag, motivo, cuándo). Que fue
+    // corregida se sabe por el `corrects` de la entrada nueva; reetiquetarla "Corrección-*"
+    // borraba qué había sido el movimiento y le sacaba al timeline el Deshacer.
     original.flag = true;
-    original.editedFields = editedFields;
     original.reason = reasonOriginal;
-    original.type = toCorrectionType(originalType);
+    original.correctedAt = new Date();
 
     await original.save();
 
-    if (editedFields.includes('status')) {
-      tire.status = updates.form.status;
-    }
-
-    if (editedFields.includes('vehicle')) {
-      tire.vehicle = updates.form.vehicle || null;
-    }
-
-    const clone = original.toObject();
+    // El clon parte de la original sin sus refs populadas ni su metadata: la entrada nueva
+    // tiene sus propias fechas, su propio autor y su propia marca de corrección.
+    const clone = original.toObject({ depopulate: true });
     delete clone._id;
+    delete clone.__v;
+    delete clone.createdAt;
+    delete clone.updatedAt;
+    delete clone.correctedAt;
+    delete clone.user;
 
     const reasonFinal = userExtra && userExtra !== reasonCorrection
       ? `${reasonCorrection} ${userExtra}`
@@ -425,15 +444,20 @@ class TireService {
       editedFields,
       date: new Date(),
       reason: reasonFinal,
-      vehicle: updates.form.vehicle || null,
+      // Si el form no corrige el vehículo, la corrección conserva el de la original. Antes
+      // caía a null y corregir solo el km de una asignación DESMONTABA la cubierta.
+      vehicle: vehiculoEditado ? (updates.form.vehicle || null) : idOf(original.vehicle),
+      // N6: la posición es del vehículo viejo; en el nuevo no significa nada.
+      position: vehiculoEditado ? null : (clone.position ?? null),
       corrects: original._id,
       km: kmFinal, // usa el valor calculado arriba
       receiptNumber
     };
 
-    const inserted = await db.History.create(newEntry);
+    await db.History.create(newEntry);
     const updatedHistory = await db.History.find({ tire: tireId }).sort({ date: 1 });
     const finalState = recalculateTireState(updatedHistory);
+    // Si el vehículo efectivo cambió, updateTireFromState limpia la posición (N6).
     updateTireFromState(tire, finalState); // Aplicar estado final
 
     await tire.save();
@@ -456,9 +480,6 @@ class TireService {
     const original = await db.History.findById(historyId).populate('vehicle').populate('corrects');
     if (!original) throw httpError('Entrada de historial no encontrada', 404);
 
-    // Después de confirmar que la entrada existe: un deshacer sobre un id inválido no gasta número.
-    const receiptNumber = await reservarNumeroComprobante(db, formData.receiptNumber);
-
     // Definir razones
     const reasonOriginal = `Deshecho en la orden N°${orderNumber}`;
     const reasonUndo = `Deshacer entrada N°${original.orderNumber}`;
@@ -467,38 +488,30 @@ class TireService {
       ? `${reasonUndo} ${userExtra}`
       : reasonUndo;
 
-    // El tipo se lee ANTES de marcar la entrada: abajo se muta a la forma Corrección-*, y el
-    // switch tiene que razonar sobre lo que la entrada ERA, no sobre lo que quedó.
     const originalType = original.type;
 
-    // Marcar entrada original como deshecha
-    original.flag = true;
-    original.editedFields = ['Deshacer entrada'];
-    original.correctedAt = new Date();
-    original.reason = reasonOriginal;
-    original.type = toCorrectionType(originalType);
-    await original.save();
-
-    let revertedData = {};
-
-    // Lógica de reversión según el tipo de entrada.
+    // N1: la reversión se RESUELVE entera antes de escribir nada. Cada rechazo posible (tipo
+    // no soportado, alta, sin asignación previa, posición ocupada) sale de acá, antes de
+    // reservar el número y antes de marcar la original. Antes la original quedaba marcada
+    // "Deshecho en la orden ..." y el número quemado aunque el deshacer rebotara.
+    let reversion;
     switch (originalType) {
       case 'Asignación':
       case 'Corrección-Asignación':
         // Deshacer asignación = desasignar cubierta
-        revertedData = await this.handleUndoAssignment(db, tire, original, history, orderNumber, reasonFinal, receiptNumber);
+        reversion = this.handleUndoAssignment(tire, original, orderNumber, reasonFinal);
         break;
 
       case 'Desasignación':
       case 'Corrección-Desasignación':
-        // Deshacer Desasignación = reasignar a vehículo anterior
-        revertedData = await this.handleUndoUnassignment(db, tire, original, history, orderNumber, reasonFinal, receiptNumber);
+        // Deshacer Desasignación = reasignar al vehículo y la posición anteriores
+        reversion = await this.handleUndoUnassignment(db, tire, original, history, orderNumber, reasonFinal);
         break;
 
       case 'Estado':
       case 'Corrección-Estado':
         // Deshacer cambio de estado = volver al estado anterior
-        revertedData = await this.handleUndoStatusChange(db, tire, original, history, orderNumber, reasonFinal, receiptNumber, statuses, originalType);
+        reversion = this.handleUndoStatusChange(tire, original, history, orderNumber, reasonFinal, statuses, originalType);
         break;
 
       case 'Alta':
@@ -510,10 +523,29 @@ class TireService {
         throw httpError(`Tipo de entrada no soportado para deshacer: ${originalType}`, 400);
     }
 
-    // Recalcular estado final
+    // Recién acá, con la reversión ya validada.
+    const receiptNumber = await reservarNumeroComprobante(db, formData.receiptNumber);
+
+    // S7: la original CONSERVA su tipo (igual que al corregir). Queda marcada como deshecha;
+    // quién la deshizo se sabe por el `corrects` de la entrada nueva.
+    original.flag = true;
+    original.editedFields = ['Deshacer entrada'];
+    original.correctedAt = new Date();
+    original.reason = reasonOriginal;
+    await original.save();
+
+    const newEntry = { ...reversion.newEntry, receiptNumber };
+    await db.History.create(newEntry);
+
+    // Recalcular estado final. Sin vehículo (o con otro) la posición se limpia (S7).
     const updatedHistory = await db.History.find({ tire: tireId }).sort({ date: 1 });
     const finalState = recalculateTireState(updatedHistory);
     updateTireFromState(tire, finalState);
+
+    // N5: de vuelta en el vehículo de la asignación previa, recupera su posición.
+    if (reversion.position && idOf(tire.vehicle) === idOf(newEntry.vehicle)) {
+      tire.position = reversion.position;
+    }
 
     await tire.save();
     // `tire.vehicle` acaba de recalcularse desde el historial: alinear el otro lado.
@@ -523,14 +555,16 @@ class TireService {
     return {
       tire,
       correctedEntryId: historyId,
-      newEntry: revertedData.newEntry,
-      revertedTo: revertedData.revertedTo,
+      newEntry,
+      revertedTo: reversion.revertedTo,
       receiptNumber
     };
   }
 
-  async handleUndoAssignment(db, tire, original, history, correctionOrder, reason, receiptNumber) {
-    // Crear entrada de Desasignación sin kmAlta ni kmBaja
+  // Los handlers de reversión NO escriben: arman la entrada nueva (sin número de comprobante)
+  // y validan. undoHistoryEntry escribe recién cuando todos pasaron (N1).
+  handleUndoAssignment(tire, original, correctionOrder, reason) {
+    // Entrada de Desasignación sin kmAlta ni kmBaja
     const newEntry = {
       tire: tire._id,
       type: 'Desasignación',
@@ -544,10 +578,7 @@ class TireService {
       km: 0,
       status: tire.status,
       corrects: original._id,
-      receiptNumber
     };
-
-    await db.History.create(newEntry);
 
     return {
       newEntry,
@@ -555,35 +586,49 @@ class TireService {
     };
   }
 
-  async handleUndoUnassignment(db, tire, original, history, correctionOrder, reason, receiptNumber) {
-    // Buscar la última asignación antes de la Desasignación original
+  async handleUndoUnassignment(db, tire, original, history, correctionOrder, reason) {
+    // La asignación previa es la última EFECTIVA antes de la desasignación: la que ninguna
+    // otra entrada corrige. Mismo criterio que recalculateTireState. Filtrar por `flag`
+    // salteaba las correcciones y los deshaceres (que también llevan flag) y reasignaba a un
+    // vehículo y una posición que ya no eran los vigentes.
+    const corregidas = new Set(history.filter((h) => h.corrects).map((h) => idOf(h.corrects)));
     const lastAssignment = [...history]
       .reverse()
       .find(entry =>
         (entry.type === 'Asignación' || entry.type === 'Corrección-Asignación') &&
         new Date(entry.date) < new Date(original.date) &&
-        !entry.flag
+        !corregidas.has(String(entry._id))
       );
 
     if (!lastAssignment) {
       throw httpError('No se encontró una asignación anterior para revertir', 409);
     }
 
-    // Obtener el kmAlta correcto de la última asignación
-    const correctKmAlta = lastAssignment.kmAlta || 0;
+    const vehicleId = idOf(lastAssignment.vehicle);
 
-    // Si es una corrección de Desasignación, necesitamos revertir los km
-    let revertedKmBaja = original.kmBaja || 0;
-
-    if (original.type === 'Corrección-Desasignación' && original.corrects) {
-      // Buscar la entrada original que fue corregida
-      const originalDesassignment = history.find(h => h._id.toString() === original.corrects.toString());
-      if (originalDesassignment) {
-        revertedKmBaja = originalDesassignment.kmBaja || 0;
+    // N5: la cubierta vuelve a la posición que tenía. Si el vehículo ya no tiene esa posición
+    // (se reconfiguraron los ejes) vuelve sin posición, como antes. Si otra cubierta la ocupa,
+    // se rechaza: montar dos cubiertas en el mismo lugar es justo lo que había que evitar.
+    let position = lastAssignment.position || null;
+    if (position) {
+      const vehicle = await db.Vehicle.findById(vehicleId).select('axles');
+      const existe = vehicle && generatePositions(vehicle.axles).some((p) => p.code === position);
+      if (!existe) {
+        position = null;
+      } else {
+        const ocupada = await db.Tire.findOne({ vehicle: vehicleId, position, _id: { $ne: tire._id } }).select('code');
+        if (ocupada) {
+          throw httpError(
+            `La posición ${position} ya está ocupada por la cubierta ${ocupada.code}. Desmontala primero para deshacer esta desasignación.`,
+            409,
+          );
+        }
       }
     }
 
-    // Crear entrada de reasignación con el kmAlta correcto
+    // Obtener el kmAlta correcto de la última asignación
+    const correctKmAlta = lastAssignment.kmAlta || 0;
+
     const newEntry = {
       tire: tire._id,
       type: 'Asignación',
@@ -593,21 +638,20 @@ class TireService {
       flag: true,
       editedFields: ['Deshacer Desasignación'],
       vehicle: lastAssignment.vehicle,
+      position,
       kmAlta: correctKmAlta, // Usar el kmAlta de la asignación original
       status: tire.status,
       corrects: original._id,
-      receiptNumber
     };
-
-    await db.History.create(newEntry);
 
     return {
       newEntry,
-      revertedTo: `Cubierta reasignada al vehículo ${lastAssignment.vehicle} con kmAlta=${correctKmAlta}`
+      position,
+      revertedTo: `Cubierta reasignada al vehículo ${vehicleId} con kmAlta=${correctKmAlta}`
     };
   }
 
-  async handleUndoStatusChange(db, tire, original, history, correctionOrder, reason, receiptNumber, statuses = [], originalType = original.type) {
+  handleUndoStatusChange(tire, original, history, correctionOrder, reason, statuses = [], originalType = original.type) {
     // Buscar el estado anterior
     const previousStatusEntry = [...history]
       .reverse()
@@ -626,8 +670,9 @@ class TireService {
     if (previousStatusEntry) {
       revertedStatus = previousStatusEntry.status;
     } else if (originalType === 'Corrección-Estado' && original.corrects) {
-      // Si es una corrección, buscar la entrada original
-      const originalStatusChange = history.find(h => h._id.toString() === original.corrects.toString());
+      // Si es una corrección, buscar la entrada original. `corrects` viene populado: se
+      // compara por id (el toString de un documento no es su id).
+      const originalStatusChange = history.find(h => String(h._id) === idOf(original.corrects));
       if (originalStatusChange) {
         // Buscar el estado anterior a la entrada original
         const evenEarlierStatus = [...history]
@@ -642,7 +687,7 @@ class TireService {
       }
     }
 
-    // Crear entrada de cambio de estado
+    // Entrada de cambio de estado
     const newEntry = {
       tire: tire._id,
       type: 'Estado',
@@ -654,10 +699,7 @@ class TireService {
       status: revertedStatus,
       vehicle: tire.vehicle,
       corrects: original._id,
-      receiptNumber
     };
-
-    await db.History.create(newEntry);
 
     return {
       newEntry,
