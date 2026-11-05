@@ -22,8 +22,12 @@ import { AXLE_PRESETS, generatePositions } from '../src/utils/axles.js';
 config();
 
 // ─── Config del tenant demo ───────────────────────────────────────────────────
-const TENANT = { name: 'Andes Cargo', adminEmail: 'admin@andescargo.com', password: 'AndesAdmin25' };
+// admin@ y operario@ usan la clave PÚBLICA que muestra el recuadro del login demo
+// (frontend Login.jsx). Si cambia una, cambia la otra. operario1@ y operario2@ conservan las
+// suyas. tireCodePrefix es propio de Andes Cargo: nunca el de un cliente real.
+const TENANT = { name: 'Andes Cargo', adminEmail: 'admin@andescargo.com', password: 'tireops', tireCodePrefix: 'ANC-' };
 const OPERATORS = [
+  { email: 'operario@andescargo.com', name: 'Operario Demo', password: 'tireops' },
   { email: 'operario1@andescargo.com', name: 'Juan Pérez', password: 'AndesOp01' },
   { email: 'operario2@andescargo.com', name: 'Carla Ruiz', password: 'AndesOp02' },
 ];
@@ -94,6 +98,9 @@ try {
   // la API le respondería 403 PASSWORD_CHANGE_REQUIRED a todos). provisionTenant lo pone en true
   // por default para los clientes reales.
   const prov = await provisionTenant({ name: TENANT.name, adminEmail: TENANT.adminEmail, password: TENANT.password, mustChangePassword: false });
+  // provisionTenant crea un tenant de cliente común. Sin isDemoTemplate, el login dejaría entrar
+  // a los visitantes a la base compartida en vez de clonarles una copia (ver demo.service.js).
+  await Tenant.updateOne({ _id: prov.tenant._id }, { $set: { tireCodePrefix: TENANT.tireCodePrefix, isDemoTemplate: true } });
   for (const op of OPERATORS) {
     await User.create({
       email: op.email, name: op.name, passwordHash: await hashPassword(op.password),
