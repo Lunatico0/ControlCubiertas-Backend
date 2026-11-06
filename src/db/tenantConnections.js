@@ -65,6 +65,33 @@ export function getTenantDb(dbName) {
   return entry;
 }
 
+// Borra la base ENTERA de un tenant con el driver nativo, sin pasar por getTenantDb.
+// getTenantDb compila los modelos, y el model.init() de Mongoose (autoCreate + autoIndex) corre
+// en paralelo con el drop: en una instancia en frío (el cron) volvía a crear la base vacía con
+// sus índices y la dejaba huérfana. También saca la entrada de la cache, para que nadie siga
+// usando modelos de una base que ya no existe.
+export async function dropTenantDb(dbName) {
+  if (baseFallida) rearmarBase();
+  if (!baseConnection) {
+    throw new Error('Conexión base no inicializada. Llamá initBaseConnection(uri) antes de dropTenantDb().');
+  }
+  await baseConnection.asPromise();
+  cache.delete(dbName);
+  await baseConnection.getClient().db(dbName).dropDatabase();
+}
+
+// Nombres de todas las bases del cluster de datos. Lo usa la purga de la demo para encontrar
+// bases de clones que ya no tienen registro en el control plane.
+export async function listDatabaseNames() {
+  if (baseFallida) rearmarBase();
+  if (!baseConnection) {
+    throw new Error('Conexión base no inicializada. Llamá initBaseConnection(uri) antes de listDatabaseNames().');
+  }
+  await baseConnection.asPromise();
+  const { databases } = await baseConnection.getClient().db('admin').admin().listDatabases({ nameOnly: true });
+  return databases.map((d) => d.name);
+}
+
 export async function closeAll() {
   cache.clear();
   baseFallida = false;
