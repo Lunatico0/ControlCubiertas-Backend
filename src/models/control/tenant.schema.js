@@ -36,7 +36,7 @@ export const tenantSchema = new mongoose.Schema(
     // flota con chapas extranjeras o históricas. Ver utils/plate.js.
     plateFormats: { type: [String], default: () => [...PLATE_FORMATS_AR] },
     // Prefijo del código interno de cubierta para DISPLAY (el code se guarda como Number
-    // autoincremental). "" = sin prefijo; "TMBC-" muestra el code 12 como "TMBC-12".
+    // autoincremental). "" = sin prefijo; "CUB-" muestra el code 12 como "CUB-12".
     // Configurable desde el panel admin. Ver utils/tireCode en el frontend.
     tireCodePrefix: { type: String, default: '' },
     // Impresión automática del comprobante al ejecutar una acción sobre una cubierta.

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { getControlModels } from '../db/controlPlane.js';
-import { getTenantDb } from '../db/tenantConnections.js';
+import { getTenantDb, dropTenantDb, listDatabaseNames } from '../db/tenantConnections.js';
 
 // Demo de producto: un tenant EFÍMERO por visitante.
 //
@@ -37,6 +37,9 @@ const CONFIG_COPIABLE = [
 const COLECCIONES = ['Vehicle', 'Tire', 'History', 'ReceiptCounter', 'VehicleType'];
 
 const nombreDbDemo = () => `tenant_demo_${crypto.randomBytes(6).toString('hex')}`;
+// Forma EXACTA de lo que genera nombreDbDemo. La red de seguridad de la purga solo toca bases
+// con este nombre: ninguna base de un cliente real puede matchear.
+const DB_DEMO_RE = /^tenant_demo_[0-9a-f]{12}$/;
 
 // ¿Este tenant es la plantilla de la demo? Sirve para que el login sepa que tiene que clonar
 // en vez de dejar entrar al visitante a la base compartida.
@@ -98,11 +101,24 @@ export async function purgarDemosVencidos() {
   for (const t of vencidos) {
     // Primero la base de negocio, después el registro. Si el proceso muere en el medio, queda
     // un tenant sin datos (inofensivo, lo levanta la próxima corrida) y no una base huérfana
-    // sin nadie que la nombre.
-    await getTenantDb(t.dbName).conn.dropDatabase();
+    // sin nadie que la nombre. El drop va por el driver nativo (ver dropTenantDb): pasar por
+    // getTenantDb compilaba los modelos y su init recreaba la base vacía después del drop.
+    await dropTenantDb(t.dbName);
     await User.deleteMany({ tenantId: t._id });
     await Tenant.findByIdAndDelete(t._id);
   }
 
-  return { borrados: vencidos.length, bases: vencidos.map((t) => t.dbName) };
+  // Red de seguridad: bases de clones sin Tenant que las nombre (las que dejó el bug del drop
+  // en frío, o cualquier otro camino). El ORDEN importa: primero se listan las bases y después
+  // se leen los tenants. crearTenantDemo crea el Tenant ANTES de escribir en la base, así que
+  // toda base que aparece en el listado ya tiene su Tenant visible en la lectura siguiente y un
+  // demo recién creado no se confunde con una huérfana.
+  const nombres = (await listDatabaseNames()).filter((n) => DB_DEMO_RE.test(n));
+  const conTenant = new Set(
+    (await Tenant.find({ dbName: { $in: nombres } }).select('dbName').lean()).map((t) => t.dbName),
+  );
+  const huerfanas = nombres.filter((n) => !conTenant.has(n));
+  for (const n of huerfanas) await dropTenantDb(n);
+
+  return { borrados: vencidos.length, bases: vencidos.map((t) => t.dbName), huerfanas };
 }
